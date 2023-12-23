@@ -1,0 +1,15 @@
+repos:
+-   repo: https://github.com/prettier/eslint-plugin-prettier
+    rev: "v5.1.0"  # Replace with the latest version
+    hooks:
+    -   id: eslint-plugin-prettier
+
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+    -   id: trailing-whitespace
+
+-   repo: https://github.com/pre-commit/mirrors-eslint
+    rev: "v8.56.0"
+    hooks:
+    -   id: eslint
