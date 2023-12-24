@@ -1,0 +1,25 @@
+
+.repo-list{
+    width: 70%;
+    align-self: center;
+    font-size: 21px;
+    font-weight: bold;
+    justify-content: center;
+    color:red;
+    height: 90%;
+    background-color:darkblue;
+
+  }
+
+  .delete-button {
+    width: 35%;
+    font-size: 21px;
+    height: 65px;
+    align-items: center;
+    justify-content: center;
+    background-color: #003766;
+    color: #fff;
+    font-size: 21px;
+    font-weight: bold;
+    margin: 0 12%; /* Add this line to create a margin */
+  }

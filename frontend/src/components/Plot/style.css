@@ -1,0 +1,12 @@
+
+.plot-graph{
+    width: 70%;
+    align-self: center;
+    font-size: 21px;
+    font-weight: bold;
+    justify-content: center;
+    color:red;
+    height: 90%;
+    background-color:rgb(1, 1, 33);
+
+  }
