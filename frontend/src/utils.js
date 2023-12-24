@@ -127,3 +127,31 @@ export const getAllCommits = async (owner, repo) => {
         throw error; // Rethrow the error for the caller to handle
     }
 };
+
+
+/**
+ * Search for a Github repository using a partial search over the repository name passing input as search criteria
+ *
+ * @param {Object[]} commits - List of commits to be grouped.
+ * @returns {Object[]} - List of objects representing weekly commit data.
+ */
+export const searchRepositories = async (input) => {
+    try {
+      const response = await octokit.request('GET /search/repositories', {
+        headers: {
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+        q: `${input} in:name`, // Search for repositories with INPUT in the name
+        sort: 'best match', // You can change the sorting criteria if needed
+        order: 'desc', // Specify the order (descending)
+        per_page: 10, // Number of results per page
+        page: 1, // Page number
+      });
+
+      // Extract and log the repository data
+      const repositories = response.data.items;
+      console.log('Search Results:', repositories);
+    } catch (error) {
+      console.error('Error:', error.message);
+    }
+  };
