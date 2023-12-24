@@ -10,6 +10,7 @@
 
 import { useState } from 'react';
 import './style.css';
+import SearchBar from './SearchBar';
 import { getAllCommits, weeklyCommits, formatChatData } from "../../utils";
 
 const RepositoryList = ({ setRepoData }) => {
@@ -59,9 +60,7 @@ const RepositoryList = ({ setRepoData }) => {
       {/* RepositoryList */}
       <div>
         {/* Button to fetch commits data for the selected repository */}
-        <button className="delete-button" onClick={getCommits}>
-          Fetch Repository Commits
-        </button>
+        <SearchBar/>
       </div>
     </div>
   );
