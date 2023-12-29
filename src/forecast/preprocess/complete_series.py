@@ -50,7 +50,7 @@ def expand_time_series(
         ValueError: Internal control that report information for a 3 years long evaluation period
 
     Returns:
-        pd.DataFrame: DataFrame with 156 week datapoints for each repository. All repositories share the same dates.
+        pd.DataFrame: DataFrame with 155 week datapoints for each repository. All repositories share the same dates.
     """
     df_all = pd.DataFrame()
     for i in tqdm(range(len(df_index))):
@@ -62,9 +62,9 @@ def expand_time_series(
         df_expand = df_repo.merge(
             df_dates_week, on=["repo_name", date_column], how="outer"
         )
-        if len(df_expand["date"].unique()) != 156:
+        if len(df_expand["date"].unique()) != 155:
             raise ValueError(
-                "More that 156 weeks were identified after the data expansion"
+                "More that 155 weeks were identified after the data expansion"
             )
         if len(df_all) == 0:
             df_all = df_expand
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     end_date = df[date_column].max()
 
     df_dates_week = create_weekly_date_dataframe(
-        start_date, end_date, week_start="monday"
+        start_date, end_date, week_start="sunday"
     )  # Choose between sunday or monday
     df_expand = expand_time_series(df, date_column, df_index, df_dates_week)
     df_expand = create_seasonal_controls(df_expand, date_column="date")
