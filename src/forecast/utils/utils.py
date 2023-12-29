@@ -336,3 +336,35 @@ def perform_standardization(
         data_frame[column_name].values.reshape(-1, 1)
     )
     return data_frame, scaler
+
+
+# Define the missing functions
+def print_grid_scores(grid_search: object):
+    """Print the results for all the models trained in the grid_search algorithm.
+
+    Args:
+        grid_search (object): trainned models by scikit learn.
+    """
+    # Access the cross-validation results
+    results = grid_search.cv_results_
+    # Print the results
+    for mean_score, std_score, params in zip(
+        results["mean_test_score"], results["std_test_score"], results["params"]
+    ):
+        logging.info(
+            f"Mean Score: {mean_score:.4f}, Std Dev: {std_score:.4f}, Params: {params}"
+        )
+
+
+def current_date_formated() -> str:
+    """Takes the current date and pass it as str yyyymmdd.
+
+    Returns:
+        str: yyyymmdd format
+    """
+    # Get the current date and time
+    current_datetime = datetime.today()
+
+    # Convert to string with the format YYYYMMDD
+    formatted_date = current_datetime.strftime("%Y%m%d")
+    return formatted_date

@@ -9,6 +9,19 @@ conda create -n github-monitor python=3.10
 conda activate github-monitor
 conda install -c conda-forge poetry
 
+If you are using macOS you will need to add libomp to run LightGBM python package
+brew install libomp
+
+# Architecture
+The following diagram represents the application workflow. On the left side we can identify and EC2 instance dedicated to model tunning and model tarinning. This instance can be scalled vertically and include as many cores to satisfy the model tunnig and trainning workload. On the right side we have a TEST instance that is dessigned only to serve user request and deploy the application into our URL. The user is restricted to interact with the public subnet alone, that way he will never interact with the ML backend. For the test instance, we rehuse pretrained models from the DEV instance. Both instances have their own DataBase that includes three tables:
+* **Users**: Designed to store user_id, name and personal information.
+* **Sessions**: Table that connects users with a unique session_id. This way the user can start a new search everytime he loggins.
+* **Repositories**: Stores user searches, github metadata and forecats predictions. If we store each session we can retrieve data from this table instead of calling the /get_forecast everytime.
+* NOTES: These databases are not currently connected to the application. This diagram represents the production version of the app.
+
+![Image Alt Text](./images/Forecast%20Architecture.png)
+
+
 # Frontend
 # Backend
 
