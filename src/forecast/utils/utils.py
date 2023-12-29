@@ -299,7 +299,6 @@ def interact_categorical_numerical(
     temp_dfs = pool.map(_process_with_freq, thread_params)
     for each_df in temp_dfs:
         t_set = t_set.merge(each_df, how="outer", on=categorical_cols)
-        raise ValueError
 
     if (lag_col in t_set.columns) & (lag_col not in categorical_cols):
         t_set.drop(lag_col, axis=1, inplace=True)
