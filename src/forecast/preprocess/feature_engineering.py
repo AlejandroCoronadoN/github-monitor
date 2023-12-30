@@ -171,7 +171,6 @@ if __name__ == "__main__":
     df_out[date_column] = pd.to_datetime(df_out[date_column])
 
     # Trim data that falls outside the evaluation peroid. That we are ignoring the first m observation (EVALUATION WINDOW) since the first m records will be biased and will not contain accurate lag_window variables.
-
     if TEST:
         file_path = "../data/preprocess/featureengineering_test.csv"
     else:

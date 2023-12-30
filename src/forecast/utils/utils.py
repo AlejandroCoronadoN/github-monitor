@@ -368,3 +368,28 @@ def current_date_formated() -> str:
     # Convert to string with the format YYYYMMDD
     formatted_date = current_datetime.strftime("%Y%m%d")
     return formatted_date
+
+
+# Data Preprocessing Functions
+def preprocess_data(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
+    """Additional control to pass only variables available in hyperparamter optimization and iterative prediction scripts.
+
+    Args:
+        df (pd.DataFrame): Initital DataFrame
+        date_col (str): date column name
+
+    Returns:
+        pd.DataFrame: Filtered DataFrame
+    """
+    selected_cols = ["repo_name"]
+    # Convert date column to datetime
+    df[date_col] = pd.to_datetime(df[date_col])
+    for col in df.columns:
+        if "_lag" not in col and col != "repo_name":
+            selected_cols.append(col)
+        elif "_lag" in col:
+            lag = col.split("_")[8]
+            lag = int(lag.replace("lag", ""))
+            selected_cols.append(col)
+
+    return df[selected_cols]

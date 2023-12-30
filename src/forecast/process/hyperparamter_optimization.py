@@ -10,7 +10,11 @@ import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from forecast.utils.utils import current_date_formated, perform_standardization
+from forecast.utils.utils import (
+    current_date_formated,
+    perform_standardization,
+    preprocess_data,
+)
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import (
     make_scorer,
@@ -29,29 +33,6 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 src_dir = os.path.abspath(os.path.join(current_dir, "../.."))
 sys.path.append(src_dir)
 logging.basicConfig(level=logging.INFO)
-
-
-# Data Preprocessing Functions
-def preprocess_data(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
-    """Filter columns to be used by the ML models.
-
-    Args:
-        df (pd.DataFrame): Initial DataFrame.
-        date_col (str): Date column name.
-
-    Returns:
-        _type_: Filtered Data Frame
-    """
-    selected_cols = ["repo_name"]
-    # Convert date column to datetime
-    df[date_col] = pd.to_datetime(df[date_col])
-    for col in df.columns:
-        if "_lag" not in col and col != "repo_name":
-            selected_cols.append(col)
-        elif "_lag" in col:
-            selected_cols.append(col)
-
-    return df[selected_cols]
 
 
 def split_data(
@@ -117,11 +98,9 @@ def hyperparameter_optimization(
     features = [
         x
         for x in df.columns
-        if x != "repo_name"
-        and x != "week"
-        and x != "date"
-        and x != "year"
-        and x != "month"  # TODO: include seasonal variables as Dummies
+        if x
+        not in ["repo_name", "week", "date", "year", "month", "index", "commit_count"]
+        # TODO: include seasonal variables as Dummies
     ]
 
     y_test = testing_data[target]
@@ -384,7 +363,6 @@ if __name__ == "__main__":
     XGBOOST = True
     RANDOM_FOREST = True
     date_column = "date"
-    OFFSET = 0
     subfix = current_date_formated()
 
     if TEST:
@@ -397,5 +375,5 @@ if __name__ == "__main__":
     CUT_DATE = pd.to_datetime("2021-12-26")
 
     # Data Preprocessing
-    df = preprocess_data(df, date_column, OFFSET)  # 30 days
+    df = preprocess_data(df, date_column)  # 30 days
     hyperparameter_optimization(df, "", "commit_count")
