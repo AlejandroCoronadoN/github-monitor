@@ -1,28 +1,30 @@
-:root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #E5E5E5;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-
 body {
-  min-height: 100vh;
-  background-color: #E5E5E5;
-  font-family: 'Roboto', sans-serif;
-  font-weight: 400;
-  font-size: 18px;
-  line-height: 21.09px;
+    background-color: #ececec;
+    margin: 0;
+    font-family:  "Roboto", Arial, sans-serif;
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 21.09px;
 
-}
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+
+
+  }
+
+  *,
+  ::before,
+  ::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
 
 /* Default monitor size */
 .container {
     width: 1440px;
     height: 900px;
-
+    display: flex;
+    flex-direction: row;
 }

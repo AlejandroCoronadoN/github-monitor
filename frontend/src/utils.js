@@ -70,7 +70,7 @@ export const weeklyCommits = (commits) => {
 
         // Add the weekly commits to the list
         plotData.push({
-            id: week,
+            id: 52-week,
             startDate: startDate,
             endDate: endDate,
             commits: weeklyCommits,
@@ -78,7 +78,7 @@ export const weeklyCommits = (commits) => {
         });
     }
 
-    return plotData;
+    return plotData.reverse();
 };
 
 /**
@@ -90,22 +90,25 @@ export const weeklyCommits = (commits) => {
  * @throws {Error} - Throws an error if there is an issue fetching commits.
  */
 export const getAllCommits = async (owner, repo) => {
-    const perPage = 100;
     let i = 1;
     let allCommits = [];
     let dataContinue = true;
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    const formattedDate = threeMonthsAgo.toISOString();
 
     try {
         while (dataContinue) {
             const commitsResponse = await octokit.request('GET /repos/{owner}/{repo}/commits', {
                 owner,
                 repo,
-                per_page: perPage,
+                since: formattedDate,
+                per_page: 100, // Adjust per_page as needed
                 page: i,
                 headers: {
-                    'X-GitHub-Api-Version': '2022-11-28',
+                  'Accept': 'application/vnd.github.v3+json', // Use the recommended Accept header
                 },
-            });
+              });
 
             const commits = commitsResponse.data;
 
@@ -150,8 +153,26 @@ export const searchRepositories = async (input) => {
 
       // Extract and log the repository data
       const repositories = response.data.items;
-      console.log('Search Results:', repositories);
+      return repositories
     } catch (error) {
       console.error('Error:', error.message);
     }
   };
+
+
+export const getCommits = async (owner, repo) => {
+    try {
+      // Fetch all commits for the specified repository
+      let commitsData = await getAllCommits(owner, repo);
+      // Set the commits data to the state
+      // Group commits into weekly intervals and calculate total commits for each week
+      let plotData = weeklyCommits(commitsData);
+      // Format the commit data for chart presentation
+      let formattedData = formatChatData(plotData);
+      // Set the formatted repository data for the Plot component
+      return formattedData
+    } catch (error) {
+      console.error('Error fetching commits:', error.message);
+      // Handle errors (e.g., display an error message to the user)
+    }
+};

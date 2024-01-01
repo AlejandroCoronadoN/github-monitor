@@ -1,0 +1,129 @@
+# Post-Assignment Documentation
+
+## Major Design/Build Decisions
+
+### 1. Frontend-Backend Separation:
+   - **Decision:** I maintained the separation of the frontend and backend components, adhering to the original design. This separation allows for better modularity, scalability, and ease of maintenance. The frontend, built with React and Vite, communicates with the Python backend developed using FastAPI.
+   - **Justification:** A clear separation of concerns facilitates independent development and testing of each component. It also enables easier integration with other frontend or backend technologies in the future.
+
+### 2. Model Selection:
+   - **Decision:** Utilize XGBoost, LightGBM, and RandomForest as the core models for my forecast.
+   - **Justification:** Although there are several models and libraries dedicated to time series forecasting, I chose to use three models because they are fast to train, often yield good results in predictive exercises, and follow different regression algorithms. In the end, I combine all the models through an ensemble model with an ElasticNet algorithm. This way, regardless of which one performed better, the final regression will select the best combination of weights that give optimal results. Moreover, combining Lasso and Ridge in the final step will help me avoid including variables with low predictive power.
+
+
+### 3. Python Backend for Machine Learning:
+   - **Decision:** I used a Python backend to perform more extensive machine learning tasks, such as training advanced models and handling data preprocessing. The backend is developed with FastAPI, providing a RESTful API for communication with the frontend.
+   - **Justification:** Choosing Python helped me to craft a custom architecture for model training and tuning. Leveraging libraries like pandas and scikit-learn, I constructed rolling average variables with potent predictive capabilities for the machine learning models. Additionally, I iteratively tested and scored my models during the development process. My aim was to create an application closely resembling a production version. By keeping the model pipeline generation external to the application, I maintain a streamlined production version that calls pretrained models. This allows reviewers to evaluate the application without navigating through the entire model training and evaluation process.
+
+### 4. GitHub BigQuery Data Retrieval:
+   - **Decision:** To get a better undersating of the problem I retrieve data from the Google Github public data.
+   - **Justification:** Obtaining information from BigQuery allowed me to generate a representative sample of the github repositories and get 3 years of historic information. By doing so, I can feed my models with more information and also analize my data before starting the model development.
+
+### 5. Risk Mitigation Strategies:
+   - **Decision:** I incorporated risk mitigation strategies as outlined in the pre-assignment document. These strategies encompassed handling data quality issues, emphasizing model performance, addressing the main goal, and considering forecasting model obstacles.
+   - **Justification:** Anticipating potential risks and implementing mitigation strategies is critical for project success. In forecasting design, it's common to obtain results without thoroughly reviewing and validating information at every major transformation step. To address this, I decomposed my code into individual scripts, each addressing independent subtasks (data cleaning, feature engineering, model training, model prediction, and ensemble model). I implemented tests throughout the code to ensure that the functions performed as intended. I plotted results, compared them with actual values, and provided different metrics to ensure continuous improvement in model scores with each iteration. I made commits and updated my code to revert to previous versions and prevent changes in the ML process from affecting FastAPI integration or frontend development. Pull requests were essential for a final review of changes before merging into the main branch. I applied pre-commit in every update to ensure that my code adhered to best development practices. To run the code, I utilized npm to manage React dependencies and poetry to handle Python dependencies.
+
+
+### 6. Frontend library selection:
+   - **Decision:** Chose React-Chart to create plots in the frontend and interact with the GitHub API.
+   - **Justification:** I opted for well-supported React libraries in this project to ensure ease of maintenance. React-Chart is among the most widely supported libraries for React, and its implementation appeared to be the most intuitive. For the GitHub API, I utilized octokit as recommended in the GitHub API documentation. I reviewed the documentation to identify the best functions that addressed my requirements. I tested the API calls to select the variables that solved my problem. Then, I focused on connecting the backend and frontend, ensuring that the frontend sent the necessary data points to feed my backend ML models.
+
+
+### 7. Database Implementation:
+   - **Decision:** Utilized SQLAlchemy to create tables for enhanced interactivity, connecting endpoints, saving previous requests, and reducing computation time.
+   - **Justification:** In production, maintaining efficiency and speed is crucial. Intensive ML models can be time-consuming to process and retrieve results for the frontend. By saving requests and predictions, we can directly call results from the database (as long as they have been previously requested). This approach is fitting for the problem context, where users are expected to compare similar repositories in each session, frequently employing a comparison/discrimination criteria.
+
+
+## Time Breakdown
+
+### 1. Learning Github API: Approximately 1 hour
+   - I went through the subjects that were more related to my problem. I identified the functions that worked for me and then figured out how to use the Github API and how to extract the values from the response.
+
+
+### 2. **FrontEnd - Chart and Repository Search:** Approximately 4 hours
+   - Developing frontend components with React and Vite.
+   - Handling Github commit history and convert them to weekly reported commits.
+   - Learn ReactChart and apply them to the Github commits proceed data.
+   - CSS and frontend
+
+### 3. **FastApI:** Approximately 1 hours
+   - Create a simple FastAPI framework that allowed me to connect with my Machine learning models and create predictions.
+
+### 4. **Data cleaning and preproces:** Approximately 2 hours
+   - Indentify outlier
+   - Complete time series to create average window variables.
+   - Handle dates, repository names and raw data.
+
+### 5. Feature Engineering: Approximately 2 hours
+   - I spent most of the time debugging, as I noticed that my moving average and lag variables didn't match with my validations (Excel variable comparisons).
+   - Created general-purpose functions that can create moving average variables using parallel processing.
+   - When developing the backend code, I was thinking about the potential obstacles of running my scripts with all the available data and how much time it would take to process all the features for all the repositories. To address this issue, I used Python multi-threaded libraries to accelerate the feature engineering process.
+
+
+### 6. Hyperparameter Optimization: Approximately 3 hours
+   - I took more time in this stage to test and experiment with new scikit-learn functions. In particular, I used GridSearch for the first time to select the hyperparameters that gave better results for Random Forest, XGBoost, and LightGBM. Also, I used TimeSeriesSplit for the first time, which allowed me to use a K-fold version for time series. I combined these two features in a single function to select the best hyperparameters and validate my results with more than one set of testing data.
+
+
+### 7. **Sequential Predictions:** Approximately 2 hours
+   - To test and compare the three different models I had to make predictions for the first week and then use that prediction for the following prediction.
+   - Replicate the sequential process for each model and put atention on how my DataFrame was changing in each step to guartee that I was passing the correct information to the model.
+
+### 8. Ensemble Model: Approximately 1 hour
+   - To take advantage of the characteristics of each machine learning model, I combined them using an ensemble model at the top of the forecast.
+   - The script follows the same logic as the initial models (sequential predictions), but each time I passed the prediction of the core models followed by the prediction of the ElasticNet.
+
+
+### 9. TimeSeries Clusterization: Approximately 1 hour
+   - I implemented a new clusterization method in the final forecast (Ensemble models). In a normal development process, I would use external data sources and GitHub API information to improve the model performance. However, including more variables increases the complexity of the project drastically, as each variable has to be validated at every step. A shortcut for this problem was to summarize the behavior of each commit history using TimeSeries Clusterization. This type of clustering groups repositories that have similar commit behavior over time. My guess is that it will identify and generalize different types of languages, application types, development teams (variables that I would like to include to feed my model but will take much more time to develop).
+
+
+### 10. Architecture and Documentation: Approximately 3 hours
+   - Starting with the architecture and technology stack of the project was a great way to keep track of my progress, avoid potential obstacles and blocks of the project, and allowed me to think ahead of how to address different concerns.
+   - I provided detailed documentation for the entire project development. This documentation can be found in every function I developed and a more detailed explanation in the README file of this project.
+   - I created architecture and code diagrams to provide visuals that exemplify the development process.
+
+## Advice to Myself
+
+If I could go back, I would advise myself to:
+
+- **Reduce the scope of the problem:** Looking back, I think I was very ambitious trying to implement new features and libraries and solve the problem in a broader scope (production version). This application is not ready for production, but I tried to highlight important development concerns and how I would address them in a real-case scenario. I think it's a great way to showcase my skills and knowledge about different topics, but I underestimated the time it would take me to complete this project.
+
+- **Databases are not required:** When developing the application, I assumed that the interaction between endpoints was a priority. This led me to design the database architecture of the application, and it was one of the first problems I solved. As I developed the application, I realized that I could share data between the frontend and backend, filling this gap. Then again, the development of the database is an important feature that can improve the application performance.
+
+## New Learnings
+
+I learned:
+
+- **TensorFlow.js Integration:** Integrating TensorFlow.js for machine learning in the frontend was a new experience. It allowed me to explore the capabilities of running ML models directly in the browser.
+
+- **FastAPI Development:** FastAPI proved to be a fast and efficient framework for building APIs in Python. Learning its features and capabilities contributed to a more streamlined backend development process.
+
+## Showcase of Abilities
+
+I believe this assignment effectively showcases my abilities in:
+
+- **Full-Stack Development:** From frontend development using React and Vite to backend development with FastAPI, the assignment demonstrates proficiency in full-stack development.
+
+- **Machine Learning Integration:** The integration of TensorFlow.js for frontend machine learning showcases the ability to incorporate advanced features for data analysis and forecasting.
+
+- **Risk Mitigation and Decision-Making:** The documentation outlines potential risks, strategies for mitigation, and major design decisions. This reflects an ability to anticipate challenges and make informed decisions.
+
+## Additional Skills
+
+While the assignment covers a range of skills in web development, machine learning, and risk management, there are additional web development-related skills I possess, including:
+
+- **Database Integration:** I have experience integrating databases (e.g., SQL or NoSQL databases) into web applications for data storage and retrieval.
+
+- **Authentication and Authorization:** Implementing user authentication and authorization mechanisms, ensuring secure access to application features.
+
+- **Redux Architecture:** Another option was to develop the entire application with React. In this case, I would have used Redux to keep track of the states and internal storage of the application. It would make the application lighter, but I would lose the versatility and advantages that Python provides.
+
+- **TypeScript:** Although I am more proficient in JavaScript, TypeScript is a better typed language for deployment as it specifies the schema and type of every POST and GET request, making the application less prone to errors.
+
+- **AWS Environment Configuration:** Creating instances to accelerate the model training and prediction process. Creating security rules to provide more control to the application. Using S3 buckets or lambda functions to substitute some of the components in the backend.
+
+- **Testing Automation:** Utilizing testing frameworks (e.g., Jest for React and Pytest for Python) for automated testing to ensure the reliability and correctness of code.
+
+## Post-Assignment Final Notes
+
+When I started this project, I was very motivated since I felt that I already knew the answers to solve this problem. As I went through the project, I faced different problems, but the entire process was very challenging, interesting, and allowed me to be creative with my solutions. This might be the best coding challenge I have ever done and the most fun yet. I enjoyed every step and every drawback. Happy coding and happy new year.

@@ -1,0 +1,132 @@
+.item-suggestion{
+    display: flex;
+    height: 4.88%;
+    width: 100%;
+    background-color:#FFFFFF;
+    font-size:16px;
+
+  }
+
+  .item-info {
+    display: flex;
+    height: 44px;
+    width: 100%;
+    background-color: #FFFFFF;
+    font-size: 16px;
+    align-items: center; /* Vertically center the content */
+  }
+
+  .author {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    line-height: 18.75px;
+    margin-left: 4%;
+    color:#8383AF;
+
+  }
+
+  .repo {
+    font-family: 'Avenir Next', sans-serif;
+    font-weight: 700;
+    line-height: 21.86px;
+    margin-left: 4%;
+    font-size: 16px;
+    color:#37374A;
+
+  }
+
+  .item-selection {
+    margin: 10px;
+    display: flex;
+    height: 44px;
+    width: 100%;
+    background-color: #272736;
+    font-size: 16px;
+    flex-direction: column;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .item-set {
+    display: flex;
+    text-align: left; /* Align text to the left */
+    }
+
+.item-set-suggestion {
+    display: flex;
+    justify-content: space-between;
+    text-align: left; /* Align text to the left */
+    }
+
+  .author-selection {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 18.75px;
+    margin-left: 4%;
+    color:#8383AF;
+
+
+  }
+
+  .repo-selection {
+    font-family: 'Avenir Next', sans-serif;
+    font-weight: 700;
+    line-height: 21.86px;
+    font-size: 18px;
+    margin-left: 4%;
+    color:#FFFFFF;
+
+  }
+
+  .author-selection {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 18.75px;
+    margin-left: 4%;
+    color:#8383AF;
+
+  }
+
+  .stars-selection {
+    font-family: 'Avenir Next', sans-serif;
+    font-weight: 700;
+    line-height: 21.86px;
+    font-size: 14px;
+    margin-left: 4%;
+    color:#FFFFFF;
+
+  }
+
+  .update-selection {
+    font-family: 'Avenir Next', sans-serif;
+    font-weight: 400;
+    line-height: 21.86px;
+    font-size: 14px;
+    margin-left: 4%;
+    color:#8383AF;
+
+  }
+
+
+  .delete-overlay {
+    position: absolute;
+    top: 0;
+    width: 15%;
+    height: 100%;
+    background-color:#272736;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1; /* Set a higher z-index to appear over other elements */
+    color:#FFFFFF;
+    opacity: 80%;
+    right: 0; /* Align to the right */
+
+  }
+
+  .delete-overlay:hover {
+    opacity: 95%;
+  }

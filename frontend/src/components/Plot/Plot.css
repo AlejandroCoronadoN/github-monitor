@@ -32,3 +32,10 @@
 .plot-unhover{
     opacity: 30%;
 }
+
+.custom-chart{
+    width: 854px;
+    height: 786px;
+    margin-top: 71px;
+    margin-left: 32px;
+}

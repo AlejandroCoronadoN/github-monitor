@@ -2,20 +2,26 @@
 import './App.css'
 import { useState } from 'react';
 import Plot from './components/Plot/Plot'
-import RepositoryList from './components/RepositoryList/RepositoryList'
-import { UserData } from "./components/Plot/Data";
+import RepositoryList from './components/RepositoryList/RepositoryList';
+import SelectedRepos from './components/RepositoryList/ItemIterator/SelectedRepos';
+import jsonData from './data.json'; // Adjust the path as needed
 
 function App() {
-    const [repoData, setRepoData] = useState([]);
-
+    const [selectedRepositories, setSelectedRepositories] = useState([]);
+    const [plotsSeries, setPlotsSeries] = useState(jsonData);
   return (
     <>
 
-      <h1>Github Monito Tool App</h1>
-
       <div className="container">
-        <Plot repoData={repoData}/>
-        <RepositoryList setRepoData={setRepoData}/>
+        <Plot
+            plotsSeries = {plotsSeries}
+        />
+        <RepositoryList
+            setSelectedRepositories={setSelectedRepositories}
+            selectedRepositories={selectedRepositories}
+            setPlotsSeries = {setPlotsSeries}
+        />
+
       </div>
 
 

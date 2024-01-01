@@ -1,38 +1,96 @@
-/**
- * React Component: Plot
- * Description: This component utilizes React charts to create historic commits plots at a weekly level.
- * It receives repository data as props and renders a line chart using the React-chartjs-2 library.
- * @module Plot
- * @param {Object} repoData - Formatted data for GitHub repository commits to be displayed on the chart.
- * @returns {JSX.Element} - React component for rendering historic commits plots.
- */
-
-import './style.css';
+import './Plot.css';
 import { useEffect } from 'react';
 import { Line } from 'react-chartjs-2';
-import { Chart as ChartJS } from "chart.js/auto";
+import { Chart as ChartJS } from 'chart.js/auto';
 
-const Plot = ({ repoData }) => {
-  /**
-   * Effect hook to log a message when the repository data is updated.
-   * @function useEffect
-   * @param {function} callback - Callback function to execute when dependencies change.
-   * @param {Array} dependencies - Dependencies that trigger the effect when changed.
-   * @returns {void}
-   */
+const Plot = ({ plotsSeries }) => {
   useEffect(() => {
     console.log("RepoData UPDATED");
-  }, [repoData]);
+  }, [plotsSeries]);
+
+  // Create a unique color for each repository
+  const colors = ['#4CCA8D', '#D65C5C', '#71B7F8', '#4CCA8D', '#D65C5C', '#71B7F8','#4CCA8D', '#D65C5C', '#71B7F8',];
+
+  // Point 1: Create separate datasets for each repository
+  const chartDatasets = plotsSeries.map((plotData, index) => ({
+    label: plotData.datasets[0].label.slice(-7),
+    data: plotData.datasets[0].data.slice(-7),
+    backgroundColor: colors[index],
+    borderColor: 'black',
+    borderWidth: 2,
+  }));
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const options = { month: 'short', day: 'numeric', year: 'numeric' };
+    return new Intl.DateTimeFormat('en-US', options).format(date);
+  };
+
+  const chartOptions = {
+    plugins: {
+      tooltip: {
+        callbacks: {
+          // Point 2: Show both date and commit history on hover
+          label: ({ datasetIndex, dataIndex }) => {
+            const date = formatDate(plotsSeries[datasetIndex].labels[dataIndex]);
+            const commits = plotsSeries[datasetIndex].datasets[0].data[dataIndex];
+            const weekOf = `Week of ${date}`;
+            const commitsLabel = `**${commits} Commits**`;
+            return `${weekOf}\n${commitsLabel}`;
+          },
+        },
+      },
+    },
+    elements: {
+      line: {
+        tension: 0.2, // Point 2: Adjust tension for smoother lines
+        borderWidth: 8, // Point 2: Increase line thickness
+      },
+      ticks: {
+        color: 'blue',
+        lineWidth: 12,
+        stepSize: 1,
+      },
+      lineWidth: 12, // Adjust the thickness of the x-axis
+
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          display: true,
+        },
+        lineWidth: 12, // Adjust the thickness of the x-axis
+
+      },
+      y: {
+        beginAtZero: true,
+        grid: {
+          display: false,
+        },
+
+        ticks: {
+          color: 'black',
+          lineWidth: 12,
+          stepSize: 1,
+        },
+      },
+    },
+    responsive: true,
+    maintainAspectRatio: false,
+  };
 
   return (
     <div className='plot-graph'>
       {/* Plot */}
-      <div style={{ width: 500 }}>
+      <div style={{  width: '94%', height: '87%',backgroundColor: 'white' }}>
         {/* Conditional rendering of the line chart based on the availability of repository data */}
-        {repoData.length === 0 ? (
+        {plotsSeries.length === 0 ? (
           <div></div>
         ) : (
-          <Line data={repoData} />
+          <Line data={{ labels: plotsSeries[0].labels.slice(0,7), datasets: chartDatasets }} options={chartOptions} />
         )}
       </div>
     </div>
