@@ -1,4 +1,4 @@
-"""Settings and configuration for the Reece Chat application."""
+"""Settings and configuration for the Github Monitor application."""
 import os
 
 from pydantic_settings import BaseSettings
