@@ -1,0 +1,41 @@
+
+.plot-graph{
+    width: 62.64%;
+    align-self: center;
+    justify-content: center;
+    color:red;
+    height: 900px;
+    background-color:#FFFFFF;
+    float: left;
+  }
+
+.hover-info{
+    width: 177px;
+    height: 54px;
+    border-radius:4px;
+    padding: 8px, 16px, 8px, 16px;
+    gap: 4px;
+    font-size: 14px;
+    line-height: 16.41px;
+
+}
+
+/*First line*/
+.hover-info-primary{
+    font-weight: 400;
+}
+/*Second line*/
+.hover-info-secondary{
+    font-weight: 700;
+}
+
+.plot-unhover{
+    opacity: 30%;
+}
+
+.custom-chart{
+    width: 854px;
+    height: 786px;
+    margin-top: 71px;
+    margin-left: 32px;
+}
