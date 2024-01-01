@@ -1,0 +1,55 @@
+[tool.poetry]
+name = "src"
+version = "0.1.0"
+description = ""
+authors = ["Alejandro Coronado <alejandro.coronado.n@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+langchain = "0.0.333"
+fastapi = "^0.103.1"
+uvicorn = "^0.23.2"
+tqdm = "^4.66.1"
+boto3 = "^1.28.52"
+loguru = "^0.7.2"
+openai = "^0.28.0"
+pydantic = "^2.3.0"
+sqlalchemy = "^2.0.21"
+pydantic-settings = "^2.0.3"
+faiss-cpu = "^1.7.4"
+asyncio = "^3.4.3"
+pandas = "^2.1.1"
+prometheus-client = "^0.17.1"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.0.290"
+pytest = "^7.4.2"
+ipykernel = "^6.25.2"
+pre-commit = "^3.4.0"
+rich = "^13.5.3"
+result = "^0.13.1"
+icecream = "^2.1.3"
+jupyter = "^1.0.0"
+google-cloud-bigquery = "^3.14.1"
+seaborn = "^0.13.0"
+scikit-learn = "^1.3.2"
+xgboost = "^2.0.3"
+statsmodels = "^0.14.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+select = ["E", "F", "Q",  "I001", "ERA","T20","D"]
+ignore = ["D213", "D203", "E501", "B905","D417"]
+line-length = 88 # Same as black
+exclude = [
+    "scripts/"
+]
+
+[tool.ruff.pydocstyle]
+convention = "google"
+
+[tool.ruff.isort]
