@@ -393,3 +393,48 @@ def preprocess_data(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
             selected_cols.append(col)
 
     return df[selected_cols]
+
+
+def weekly_group(df, date_col, index_cols, sum_cols, mean_cols):
+    if len(sum_cols) > 0:
+        test_col = sum_cols[0]
+        total_test_1 = df[test_col].sum()
+    else:
+        test_col = mean_cols[0]
+        total_test_1 = df[test_col].mean()
+
+    merge_group = index_cols.copy()
+    merge_group.append(date_col)
+    df[date_col] = pd.to_datetime(df[date_col])
+    df[date_col] = df[date_col].apply(lambda x: convert_to_first_monday_of_week(x))
+    df_week_sum = df.groupby(merge_group)[sum_cols].sum().reset_index()
+    df_week_mean = df.groupby(merge_group)[mean_cols].mean().reset_index()
+
+    df_out = df_week_mean.merge(df_week_sum, on=merge_group, how="inner")
+
+    if len(sum_cols) > 0:
+        total_test_2 = df_out[test_col].sum()
+        if total_test_1 - total_test_2 > 0.01:
+            raise ValueError
+    else:
+        total_test_2 = df_out[test_col].mean()
+        if np.abs(total_test_1 - total_test_2) / total_test_1 > 0.2:
+            raise ValueError
+    df_out[date_col] = pd.to_datetime(df_out[date_col])
+    df_out = df_out.sort_values(index_cols + [date_col], ascending=True)
+    return df_out
+
+
+def convert_to_first_monday_of_week(input_date):
+    """Convert any date to the date linked to the first Monday of the same week.
+
+    Parameters:
+    input_date (str or datetime.date): The input date to convert.
+
+    Returns:
+    datetime.date: The date linked to the first Monday of the same week.
+    """
+    input_date = pd.to_datetime(input_date)
+    # Calculate the start of the week (Monday)
+    start_of_week = input_date - pd.DateOffset(days=input_date.weekday())
+    return start_of_week.date()
