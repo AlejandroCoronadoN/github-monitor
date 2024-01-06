@@ -1,116 +1,71 @@
+/* Container for the repository list */
+.repository-list-container {
+    background-color: #37374A; /* Background color */
+    display: flex;
+    flex-direction: column;
+    width: 538px !important;
+    height: 900px;
+  }
 
-.repo-list{
+  /* Header input for repository search */
+  .item-list-header {
+    height: 60px;
+    width: 474px;
+    margin-top: 80px;
+    border-top-right-radius: 4px;
+    border-top-left-radius: 4px;
+    color: #8383AF; /* Text color */
+    font-size: 16px;
+    line-height: 18.75px;
+    padding-left: 4%;
+    gap: 40px;
+    outline: none;
+  }
+
+  /* Container for suggested items */
+  .item-list-suggested {
+    /* Add your styles here */
+  }
+
+  /* Container for selected items */
+  .item-list-selected {
+    height: 272px;
+    width: 474px;
+    gap: 56px;
+  }
+
+  /* Repository list container */
+  .repo-list {
     width: 37.36%;
-    color:rgb(232, 226, 226);
+    color: rgb(232, 226, 226);
     height: 100%;
-    background-color:#37374A;
+    background-color: #37374A;
     float: right;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-
   }
 
+  /* State message styling */
   .state-message {
-    width: 88%;
-    height: 26.66%;
+    width: 473px;
+    height: 208px;
     border-radius: 16px;
-    margin-top: 3%;
-    background-color: #242432;
-
+    color: #BCBCF2; /* Text color */
     font-weight: 400;
     font-size: 18px;
     line-height: 24px;
-    color: #BCBCF2;
-    padding: 14.27%;
+    background-color: #242432;
+    margin-top: 6%;
     text-align: center;
+    padding: 42px;
   }
 
-    .search-icon{
-        width:50px;
-        height: 50px;
-        margin-bottom: 20px;
-    }
-
-
-.item-list-header{
-    height: 6.66%;
+  /* Search icon styling */
+  .search-icon {
     display: flex;
-    gap: 40px;
-    outline: none;
-    font-size: 16px;
-    line-height: 18.75px;
-    padding-left: 4%; /* Adjust the value as needed */
-
+    flex-direction: column;
+    margin-bottom: 20px;
+    width: 49px;
+    height: 49px;
+    margin-left: 40%;
   }
-
-/*Search bar*/
-
-
-.searchbox  {
-    outline: none;
-    width: 100%;
-    height: 100%;
-    background-color: #ffffff;
-    border:0px;
-    margin-top: 8.88%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-
-.searchbox:focus {
-
-}
-
-.searchbox-list {
-    left: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    background-color: #fff;
-    flex-grow: 1;
-
-}
-
-.searchbox-list li {
-    padding: 10px;
-    border-bottom: 1px solid #ccc;
-    cursor: pointer;
-    height: 4.8%;
-    line-height: 18.75px;
-}
-
-.searchbox-list li:last-child {
-    border-bottom: none;
-}
-
-
-    .searchbox-entry-hover{
-        background-color: #8383AF;
-    }
-
-    .repository-list-container {
-        background-color:#37374A;
-        display: flex;
-        flex-direction: column;
-        padding: 10px;
-        width: 37.36%;
-        overflow-x: hidden;
-        overflow-y: auto;
-        font-size: 24pt;
-        font-weight: 300;
-
-      }
-
-      .search-icon {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        margin-bottom: 20px;
-      }

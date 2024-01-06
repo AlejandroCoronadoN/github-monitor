@@ -6,7 +6,7 @@
  */
 
 import { Octokit } from "octokit";
-
+import commitHistory from "./commitHistory.json"
 // GitHub API token for authentication
 const githubApiToken = import.meta.env.VITE_GITHUB_API_TOKEN;
 
@@ -43,6 +43,9 @@ export const formatChatData = (plotData) => {
     return formatChatData;
 }
 
+
+
+
 /**
  * Groups commits into weekly intervals and calculates the total number of commits for each week.
  *
@@ -71,14 +74,14 @@ export const weeklyCommits = (commits) => {
         // Add the weekly commits to the list
         plotData.push({
             id: 52-week,
-            startDate: startDate,
-            endDate: endDate,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
             commits: weeklyCommits,
             totalCommits: weeklyCommits.length
         });
     }
-
-    return plotData.reverse();
+    plotData.sort((a, b) => a.id - b.id);
+    return plotData;
 };
 
 /**
@@ -100,8 +103,8 @@ export const getAllCommits = async (owner, repo) => {
     try {
         while (dataContinue) {
             const commitsResponse = await octokit.request('GET /repos/{owner}/{repo}/commits', {
-                owner,
-                repo,
+                owner:owner,
+                repo:repo,
                 since: formattedDate,
                 per_page: 100, // Adjust per_page as needed
                 page: i,
@@ -139,16 +142,21 @@ export const getAllCommits = async (owner, repo) => {
  * @returns {Object[]} - List of objects representing weekly commit data.
  */
 export const searchRepositories = async (input) => {
+
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    const formattedDate = threeMonthsAgo.toISOString();
     try {
       const response = await octokit.request('GET /search/repositories', {
         headers: {
           'X-GitHub-Api-Version': '2022-11-28',
         },
         q: `${input} in:name`, // Search for repositories with INPUT in the name
-        sort: 'best match', // You can change the sorting criteria if needed
+        sort: 'stars', //I selected this as my own criteria since we want top repositories as first suggestions.
         order: 'desc', // Specify the order (descending)
-        per_page: 10, // Number of results per page
+        per_page: 6, // Number of results per page
         page: 1, // Page number
+        since:formattedDate// reduce execution timne
       });
 
       // Extract and log the repository data
@@ -163,16 +171,63 @@ export const searchRepositories = async (input) => {
 export const getCommits = async (owner, repo) => {
     try {
       // Fetch all commits for the specified repository
-      let commitsData = await getAllCommits(owner, repo);
+      let test = true
+      let commitsData = []
+      if(test){
+        console.log("TEST")
+        commitsData = commitHistory;
+
+      }else{
+        console.log(`owner: ${owner}`);
+        console.log(`repo: ${repo}`);
+        commitsData = await getAllCommits(owner, repo);
+
+        console.log("commitsData: ",commitsData)
+      }
       // Set the commits data to the state
       // Group commits into weekly intervals and calculate total commits for each week
       let plotData = weeklyCommits(commitsData);
       // Format the commit data for chart presentation
-      let formattedData = formatChatData(plotData);
-      // Set the formatted repository data for the Plot component
-      return formattedData
+      let formattedPlotingData = formatChatData(plotData);
+
+      let formatBackendPost = {
+        dates: plotData.map((data) => data.startDate),
+        commits:plotData.map((data) => data.totalCommits),
+        };
+
+      let forecast = await getForecast(formatBackendPost)
+      return formattedPlotingData
     } catch (error) {
       console.error('Error fetching commits:', error.message);
       // Handle errors (e.g., display an error message to the user)
     }
 };
+
+  /**
+   * Gets user information by sending a request to the server.
+   *
+   * @param {string} user_id - The user ID.
+   * @returns {Promise<Object>} - A promise that resolves to the user information.
+   */
+  export const getForecast = async (commitsData) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8000/repositories/get_forecast`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            dates: commitsData.dates,
+            commits: commitsData.commits
+        }),
+        }
+      );
+      var data = await response.json();
+      return data;
+    } catch (error) {
+      return {
+        response:
+          "**Sorry for the inconvenience - user** \n" + error,
+      };
+    }
+  };
