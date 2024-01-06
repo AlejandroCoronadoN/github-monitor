@@ -71,6 +71,7 @@ def update_with_predictions(
     predicted_date: datetime,
     scalers_dict: dict,
     model_loaded: object,
+    model_features,
 ) -> pd.DataFrame:
     """Reinserts the prediction as commit_count (target variable), allowing us to take these values as new entries and reprocess data with interact_categorical_numerical and prepare the DataFrame for the next round of predictions (t+1).
 
@@ -100,6 +101,7 @@ def update_with_predictions(
             )
 
     X_test_imputed = df_model_target.replace(np.nan, 0)
+    X_test_imputed = X_test_imputed[model_features]
     predictions = model.predict(X_test_imputed)
     scaler = scalers_dict["commit_count"]  # ? TRANSFORM STANDARDIZED -> UN-STANDARDIZED
     destandardize_value = scaler.inverse_transform(
@@ -197,6 +199,7 @@ def filter_dates(
     Returns:
         pd.DataFrame: Filtered DataFrame.
     """
+
     # Data Preprocessing
     df_predicted = df.copy()
     # Give minimal space for the interact_categoprical_numerical function to perform operations (increase speed)
@@ -217,6 +220,9 @@ def make_iterative_prediction(
     parallel,
     min_date,
     evaluation_window,
+    model_features,
+    prediction_window,
+    production =  False
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Crete iterative prediction by passing the initial Data and the updating the DataFrame with new predictions. The model is feeded every iteration with a new set of average window and lag variables. Each model makes it's own predictions over a time frame = PREDICTION_WINDOW.
 
@@ -232,9 +238,6 @@ def make_iterative_prediction(
     """
     selected_cols = [
         "repo_name",
-        "year",
-        "month",
-        "week",
         "date",
         "commit_count",
     ]
@@ -243,8 +246,10 @@ def make_iterative_prediction(
     df_1month_validtaion = pd.DataFrame()
     df_2month_validtaion = pd.DataFrame()
     df_3month_validtaion = pd.DataFrame()
-
-    model_filename = f"./models/commit_count_{model}.joblib"
+    if production:
+        model_filename = f"githubmonitor/forecast/process/models/commit_count_{model}.joblib"
+    else:
+        model_filename = f"./models/commit_count_{model}.joblib"
     model_loaded = joblib.load(model_filename)
 
     df_predicted = filter_dates(
@@ -296,7 +301,7 @@ def make_iterative_prediction(
             parallel=True,
         )
 
-        df_index = df_iteration[["year", "month", "week", "date", "repo_name"]].copy()
+        df_index = df_iteration[[ "date", "repo_name"]].copy()
         df_index = df_index.merge(df_window_mean, on=["date", "repo_name"], how="outer")
         df_index = df_index.merge(df_window_ewm, on=["date", "repo_name"], how="outer")
 
@@ -306,7 +311,7 @@ def make_iterative_prediction(
         features = [
             x
             for x in df_index.columns
-            if x not in ["date", "repo_name", "year", "week", "month", "day"]
+            if x not in ["date", "repo_name"]
         ]
         df_index = df_index.sort_values(["repo_name", "date"], ascending=True)
         df_model_input = df_index[features]
@@ -318,6 +323,7 @@ def make_iterative_prediction(
             scalers_dict=scalers_dict,
             predicted_date=predicted_date,
             model_loaded=model_loaded,
+            model_features=model_features
         )
 
         df_entry = df_predicted[df_predicted.date == predicted_date]
@@ -342,7 +348,7 @@ def make_iterative_prediction(
                 else:
                     df_2month_validtaion = pd.concat([df_2month_validtaion, df_entry])
 
-            if i in range(10, 14):  # ? THREE months 8 weeks
+            if i in range(10, 14):  # ? THREE months 12 weeks
                 if len(df_3month_validtaion) == 0:
                     df_3month_validtaion = df_entry.copy()
                 else:
@@ -440,14 +446,7 @@ def create_model_entry(last_obs: pd.DataFrame) -> Tuple[pd.DataFrame, datetime]:
         Tuple[pd.DataFrame, datetime]: New DataFrame and the last date reported.
     """
     date = last_obs["date"] + timedelta(days=1)
-    year = date.dt.year.values[0]
-    month = date.dt.month.values[0]
-    week = date.dt.strftime("%U").astype(int).values[0]
-
     new_obs_dict = {
-        "year": year,
-        "month": month,
-        "week": week,
         "date": date.values[0],
         "commit_count": 0,
     }
@@ -469,9 +468,6 @@ def get_scalers(df: pd.DataFrame) -> dict:
     for col in df_prediction.columns:
         if col not in [
             "date",
-            "year",
-            "month",
-            "week",
             "repo_name",
         ]:
             df_prediction, scaler = perform_standardization(
@@ -481,8 +477,9 @@ def get_scalers(df: pd.DataFrame) -> dict:
     return scalers_dict
 
 
-def create_iterative_forcast(
-    df: pd.DataFrame, forecast_start, min_date, evaluation_window, parallel=True
+def create_iterative_forecast(
+    df: pd.DataFrame, model, model_features, forecast_start, lag_list, rolling_list, prediction_window, min_date, evaluation_window, parallel=True,
+    production=False
 ) -> pd.DataFrame:
     """Base function that handles the iterative prediction model.
 
@@ -509,6 +506,9 @@ def create_iterative_forcast(
                 parallel=parallel,
                 min_date=min_date,
                 evaluation_window=evaluation_window,
+                production=production,
+                prediction_window =prediction_window,
+                model_features=model_features
             )
             results.append(result)
             concurrent.futures.wait(results)
@@ -541,6 +541,9 @@ def create_iterative_forcast(
             parallel=parallel,
             min_date=min_date,
             evaluation_window=evaluation_window,
+            production=production,
+            prediction_window=prediction_window,
+            model_features=model_features
         )
 
         if len(df_predicted_all) == 0:
@@ -555,22 +558,34 @@ if __name__ == "__main__":
     __spec__ = "ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>)"
     TEST = True
     parallel = False
-    prediction_window = 12  # This time is at a Weekly level
     prediction_contained = True
-
+    retrain_models = True
     lag_list = [2, 4, 6, 10]
     rolling_list = [2, 4, 6]
     cut_date = pd.to_datetime("2021-12-26")
     evaluation_window = max(lag_list) + max(rolling_list) + 1
     # ? Note: that we are going to be placed at t='2021-12-26'  the we need to start the iteration at MAX date to cover predictions until '2021-12-26'. Notice also that you will need at least evaluation_window observations before max date in order to create predictions for forecast_start. The code advance one week at a time to recalculate the predictions using previous predictions.
 
+    model_features =['sum_repo_name_on_commit_count_with_roll2_lag2_ewm', 'sum_repo_name_on_commit_count_with_roll4_lag2_ewm', 'sum_repo_name_on_commit_count_with_roll6_lag2_ewm', 'sum_repo_name_on_commit_count_with_roll2_lag4_ewm', 'sum_repo_name_on_commit_count_with_roll4_lag4_ewm', 'sum_repo_name_on_commit_count_with_roll6_lag4_ewm', 'sum_repo_name_on_commit_count_with_roll2_lag6_ewm', 'sum_repo_name_on_commit_count_with_roll4_lag6_ewm', 'sum_repo_name_on_commit_count_with_roll6_lag6_ewm', 'sum_repo_name_on_commit_count_with_roll2_lag10_ewm', 'sum_repo_name_on_commit_count_with_roll4_lag10_ewm', 'sum_repo_name_on_commit_count_with_roll6_lag10_ewm', 'sum_repo_name_on_commit_count_with_roll2_lag2_rolling', 'sum_repo_name_on_commit_count_with_roll4_lag2_rolling', 'sum_repo_name_on_commit_count_with_roll6_lag2_rolling', 'sum_repo_name_on_commit_count_with_roll2_lag4_rolling', 'sum_repo_name_on_commit_count_with_roll4_lag4_rolling', 'sum_repo_name_on_commit_count_with_roll6_lag4_rolling', 'sum_repo_name_on_commit_count_with_roll2_lag6_rolling', 'sum_repo_name_on_commit_count_with_roll4_lag6_rolling', 'sum_repo_name_on_commit_count_with_roll6_lag6_rolling', 'sum_repo_name_on_commit_count_with_roll2_lag10_rolling', 'sum_repo_name_on_commit_count_with_roll4_lag10_rolling', 'sum_repo_name_on_commit_count_with_roll6_lag10_rolling']
+
     if prediction_contained:
-        forecast_start = cut_date - timedelta(days=(prediction_window * 7))
-        min_date = forecast_start - timedelta(days=(evaluation_window * 7))
+        if retrain_models:
+            file_path = "../data/preprocess/featureengineering_test.csv"
+            df_test = pd.read_csv(file_path)
+            df_test['date'] = pd.to_datetime(df_test['date'])
+            min_date = df_test.date.min()
+            prediction_window = 104 #two years
+            forecast_start = cut_date - timedelta(days=(prediction_window * 7))
+
+        else:
+            prediction_window = 12  # Three months
+            forecast_start = cut_date - timedelta(days=(prediction_window * 7))
+            min_date = forecast_start - timedelta(days=(53 * 7))
+
     else:
         # Start from the last day and starts making iterations over the future
         forecast_start = cut_date
-        min_date = forecast_start - timedelta(days=(evaluation_window * 7))
+        min_date = forecast_start - timedelta(days=(53 * 7))
 
     for model in ["xgboost", "randomforest"]:
         start_time = time.time()
@@ -584,12 +599,17 @@ if __name__ == "__main__":
         # Data Preprocessing
         df = preprocess_data(df, "date")  # 30 days
         df = pd.read_csv(file_path)
-        df_predicted_all = create_iterative_forcast(
+        df_predicted_all = create_iterative_forecast(
             df,
+            model=model,
             forecast_start=forecast_start,
+            lag_list=lag_list,
+            prediction_window =prediction_window,
+            rolling_list=rolling_list,
             parallel=parallel,
             evaluation_window=evaluation_window,
             min_date=min_date,
+            model_features = model_features,
         )
 
         end_time = time.time()

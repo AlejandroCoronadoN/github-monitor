@@ -5,16 +5,12 @@ import os
 import sys
 from datetime import datetime, timedelta
 from typing import Tuple
-
+import pdb
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from forecast.utils.utils import (
-    current_date_formated,
-    perform_standardization,
-    preprocess_data,
-)
+
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import (
     make_scorer,
@@ -34,6 +30,11 @@ src_dir = os.path.abspath(os.path.join(current_dir, "../.."))
 sys.path.append(src_dir)
 logging.basicConfig(level=logging.INFO)
 
+from forecast.utils.utils import (
+    current_date_formated,
+    perform_standardization,
+    preprocess_data,
+)
 
 def split_data(
     df: pd.DataFrame, date_col: str, test_cut: datetime
@@ -79,6 +80,7 @@ def hyperparameter_optimization(
     cut_date,
     target="commit_count",
     subfix: str = None,
+    run_from_main = False
 ):
     """Iterates over the train set to make sequential predictions. Train models using a set of hyperparamters and returns the best combination of hyperparamters trough the scikit larn GridSearch library. Train data for each iteration is selected using the TimeSeries split that sequentially selects data for the next prediction.
 
@@ -96,6 +98,7 @@ def hyperparameter_optimization(
     test_cut = (
         cut_date - timedelta(days=prediction_window) - timedelta(days=evaluation_window)
     )
+
     # Notice that we are going to be placed at t='2021-12-26'  the we need to start the iteration at MAX date to cover predictions until '2021-12-26'. Notice also that you will need at least EVALUATION_WINDOW observations before max date in order to create predictions for MAX_DATE. Nex. we just need to advance one day at a time to recalculate the predictions using previous predictions.
     training_data, testing_data = split_data(df, "date", test_cut)
     # Prepare training and testing sets for XGBoost model
@@ -112,9 +115,11 @@ def hyperparameter_optimization(
     X_test = testing_data[features]
     X_train = training_data[features]
     y_train = training_data[target]
-
     # XGBOOST
-    model_filename = f"models/{target}_xgboost.joblib"
+    if run_from_main:
+        model_filename = f"./process/models/{target}_xgboost.joblib"
+    else:
+        model_filename = f"./models/{target}_xgboost.joblib"
     # Save the best model to a file
     grid_search_xgboost = train_xgboost_model(X_train, y_train, prediction_window)
     best_estimator = grid_search_xgboost.best_estimator_
@@ -122,13 +127,13 @@ def hyperparameter_optimization(
     # Print the best hyperparameters
     logging.info("\tbest_params", best_params)
     joblib.dump(best_estimator, model_filename)
-
     prediction_xgboost = grid_search_xgboost.predict(X_test)
     evaluate_model(y_test, prediction_xgboost)
     save_results(
         prediction_xgboost,
         testing_data,
-        model_filename,
+        date_column = date_column,
+        model_filename=model_filename,
         model="xgboost",
         subfix=subfix,
     )
@@ -164,6 +169,7 @@ def hyperparameter_optimization(
         model_filename,
         model="randomforest",
         subfix=subfix,
+        date_column="date"
     )
 
 
@@ -171,6 +177,7 @@ def save_results(
     prediction: pd.Series,
     testing_data: pd.DataFrame,
     model_filename: str,
+    date_column:str,
     model: str,
     subfix: str = None,
 ):
@@ -333,7 +340,7 @@ def plot_actual_vs_predicted_to_file(
         df_test["MONTH"] = df_test[date_column].dt.month.apply(lambda x: int(x))
         df_test["YEAR"] = df_test[date_column].dt.year.apply(lambda x: int(x))
         df_test[date_column] = pd.to_datetime(
-            df_test["YEAR"].astype(str) + "-" + df_test["MONTH"].astype(str) + "-01"
+            df_test["YEAR"].astqype(str) + "-" + df_test["MONTH"].astype(str) + "-01"
         )
         df_test = df_test.groupby([date_column]).sum()
         df_test = df_test.reset_index()
@@ -362,10 +369,14 @@ if __name__ == "__main__":
     rolling_list = [2, 4, 6]
     date_column = "date"
     subfix = current_date_formated()
+    retrain_models = False
     evaluation_window = (
         max(lag_list) * 7 + max(rolling_list) * 7
     )  # minimum data to run t
-    prediction_window = 7 * 12  # days_in_week*number_weeks
+    if retrain_models:
+        prediction_window = 7 * 53  # days_in_week*number_weeks
+    else:
+        prediction_window = 7 * 12  # days_in_week*number_weeks
     cut_date = pd.to_datetime("2021-12-26")
 
     if TEST:
@@ -380,8 +391,8 @@ if __name__ == "__main__":
     df = preprocess_data(df, date_column)  # 30 days
     hyperparameter_optimization(
         df,
-        "",
-        "commit_count",
+        subfix="",
+        target="commit_count",
         prediction_window=prediction_window,
         evaluation_window=evaluation_window,
         cut_date=cut_date,

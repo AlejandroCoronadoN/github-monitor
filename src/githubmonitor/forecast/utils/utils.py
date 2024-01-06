@@ -395,7 +395,37 @@ def preprocess_data(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
     return df[selected_cols]
 
 
-def weekly_group(df, date_col, index_cols, sum_cols, mean_cols):
+def weekly_group(
+    df: pd.DataFrame, date_col: str, index_cols: List[str], sum_cols: List[str], mean_cols: List[str]
+) -> pd.DataFrame:
+    """
+    Perform weekly grouping of the DataFrame based on specified columns.
+
+    The function groups the DataFrame by the specified 'date_col' and 'index_cols',
+    calculating the sum and mean for the provided columns 'sum_cols' and 'mean_cols', respectively.
+    It also checks for consistency between the sum and mean values for validation purposes.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame.
+        date_col (str): Name of the column containing date information.
+        index_cols (List[str]): List of column names to be used as index for grouping.
+        sum_cols (List[str]): List of column names for which the sum will be calculated.
+        mean_cols (List[str]): List of column names for which the mean will be calculated.
+
+    Returns:
+        pd.DataFrame: DataFrame with weekly grouped data.
+
+    Raises:
+        ValueError: If there is inconsistency between the sum and mean values.
+
+    Example:
+        ```
+        df_weekly_grouped = weekly_group(df, 'Date', ['Repository'], ['Column1'], ['Column2'])
+        ```
+
+    Note:
+        Ensure that the 'date_col' and 'index_cols' are present in the DataFrame.
+    """
     if len(sum_cols) > 0:
         test_col = sum_cols[0]
         total_test_1 = df[test_col].sum()
@@ -415,14 +445,16 @@ def weekly_group(df, date_col, index_cols, sum_cols, mean_cols):
     if len(sum_cols) > 0:
         total_test_2 = df_out[test_col].sum()
         if total_test_1 - total_test_2 > 0.01:
-            raise ValueError
+            raise ValueError("Inconsistency between sum values.")
     else:
         total_test_2 = df_out[test_col].mean()
         if np.abs(total_test_1 - total_test_2) / total_test_1 > 0.2:
-            raise ValueError
+            raise ValueError("Inconsistency between mean values.")
+
     df_out[date_col] = pd.to_datetime(df_out[date_col])
     df_out = df_out.sort_values(index_cols + [date_col], ascending=True)
     return df_out
+
 
 
 def convert_to_first_monday_of_week(input_date):
