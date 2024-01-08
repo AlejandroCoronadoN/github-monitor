@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Search } from 'react-feather';
 import "bootstrap/dist/css/bootstrap.min.css";
 import './RepositoryList.css';
-import { getRepoInfo } from "../../utils";
+import { getRepoInfo, getRepoForecast } from "../../utils";
 import ItemDetails from './ItemIterator/ItemDetails';
 import SelectionDetails from './ItemIterator/SelectionDetails';
 import repoSuggestions from './repositorySearch.json';
@@ -56,7 +56,7 @@ const RepositoryList = ({
 
   useEffect(() => {
     // Trigger the effect whenever the input value changes
-  }, [suggestions]);
+  }, [suggestions, description, sentimentCategory]);
 
   /**
    * Filters the GitHub repository suggestions based on the input value.
@@ -80,7 +80,7 @@ const RepositoryList = ({
           author = author.slice(0, 40) + "...";
         }
         if (repo.length > 20) {
-          repo = repo.slice(0, 40) + "...";
+          repo = repo.slice(0, 30) + "...";
         }
 
         let lastUpdate = formatDate(result.updated_at);
@@ -133,8 +133,15 @@ const RepositoryList = ({
 
   const fetchPlotsSeries = async (item) => {
     try {
+        setLoading(true); // Set loading to true before starting the fetch
+      const infoResponse = await getRepoInfo(item.author, item.repository)
+
+      setDescription(infoResponse.llmDescription)
+      setSentimentCategory(infoResponse.sentimentCategory)
       setLoading(true); // Set loading to true before starting the fetch
-      const response = await getRepoInfo(item.author, item.repository)
+
+      const response = await getRepoForecast(item.author, item.repository)
+
       setLoading(false); // Set loading to false after the fetch is complete
       return response;
     } catch (error) {
@@ -201,11 +208,9 @@ const RepositoryList = ({
     setSuggestions([]);
     let newSelectedRepos = [...selectedRepositories, item];
     setSelectedRepositories(newSelectedRepos);
-    let response = await fetchPlotsSeries(item);
+    let newCommits = await fetchPlotsSeries(item);
 
-    let newCommits = response.forecast
-    let llmDescription = response.forecast
-    let sentimentCategory = response.forecast
+
 
     // Check if plotsSeries already has 3 elements
     if (plotsSeries.length === 3) {
@@ -222,8 +227,7 @@ const RepositoryList = ({
         let newPlotsSeries = [...plotsSeries, { ...newCommits, id: plotsSeries.length }];
         setPlotsSeries(newPlotsSeries);
     }
-    setSentimentCategory(sentimentCategory)
-    setDescription(llmDescription)
+
   };
 
   /**
@@ -237,10 +241,14 @@ const RepositoryList = ({
 
   return (
     <div className="repository-list-container">
-      <input className="item-list-header" onChange={handleChange} />
-      <div className="item-list-icon">
-            <Search size={22.5} style={{ display: 'block' }} />
-          </div>
+        <div className="item-list-header">
+            <input className="item-list-header-input" onChange={handleChange} />
+            <div className="item-list-icon">
+                <Search size={22.5} style={{ display: 'block' }} />
+            </div>
+
+        </div>
+
 
       {loading && (
         <div className="loading-alert">

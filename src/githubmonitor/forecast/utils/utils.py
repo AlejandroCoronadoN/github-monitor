@@ -154,6 +154,7 @@ def _process_with_freq(arg_list: object):
         temp_df = temp_df.shift(1, freq=freq)
     else:
         temp_df = grouped_sum[numerical_cols + group_nodate].shift(lag, freq=freq)
+
     temp_df = temp_df.rename(columns=dict(zip(numerical_cols, new_colnames)))
     temp_df = temp_df.reset_index()
     grouped_sum_lag = temp_df.groupby(group_nodate)
@@ -289,22 +290,28 @@ def interact_categorical_numerical(
                         grouped_sum,
                     )
                 )
+
     if parallel:
         if parent_process == "feature_enginnering":
             pool = Pool(cpu_count() - 1)
         elif parent_process == "prediction":
             pool = Pool(6)  # Tune this parameter with htop and measure time
+        temp_dfs = pool.map(_process_with_freq, thread_params)
+        for each_df in temp_dfs:
+            t_set = t_set.merge(each_df, how="outer", on=categorical_cols)
+            pool.close()
+
     else:
-        pool = Pool(1)
-    temp_dfs = pool.map(_process_with_freq, thread_params)
-    for each_df in temp_dfs:
-        t_set = t_set.merge(each_df, how="outer", on=categorical_cols)
+        t_set = pd.DataFrame()
+        for i in range(len(thread_params)):
+            temp_df = _process_with_freq(thread_params[i])
+            if len(t_set) == 0:
+                t_set = temp_df
+            else:
+                t_set = t_set.merge(temp_df, how="outer", on=categorical_cols)
 
     if (lag_col in t_set.columns) & (lag_col not in categorical_cols):
         t_set.drop(lag_col, axis=1, inplace=True)
-
-    pool.close()
-
     return t_set
 
 
@@ -396,10 +403,13 @@ def preprocess_data(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
 
 
 def weekly_group(
-    df: pd.DataFrame, date_col: str, index_cols: List[str], sum_cols: List[str], mean_cols: List[str]
+    df: pd.DataFrame,
+    date_col: str,
+    index_cols: List[str],
+    sum_cols: List[str],
+    mean_cols: List[str],
 ) -> pd.DataFrame:
-    """
-    Perform weekly grouping of the DataFrame based on specified columns.
+    """Perform weekly grouping of the DataFrame based on specified columns.
 
     The function groups the DataFrame by the specified 'date_col' and 'index_cols',
     calculating the sum and mean for the provided columns 'sum_cols' and 'mean_cols', respectively.
@@ -454,7 +464,6 @@ def weekly_group(
     df_out[date_col] = pd.to_datetime(df_out[date_col])
     df_out = df_out.sort_values(index_cols + [date_col], ascending=True)
     return df_out
-
 
 
 def convert_to_first_monday_of_week(input_date):

@@ -2,10 +2,15 @@
 import logging
 import os
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Optional, Tuple, Union
 
 import pandas as pd
+from forecast.utils.utils import (
+    generate_date_range,
+    get_testing_params,
+    interact_categorical_numerical,
+)
 from tqdm import tqdm
 
 # TODO: Ruff is forcing us to define the following instructions after the import. For testing this script separately rearange the order of these lines of code.
@@ -14,12 +19,6 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 src_dir = os.path.abspath(os.path.join(current_dir, "../.."))
 sys.path.append(src_dir)
 logging.basicConfig(level=logging.INFO)
-
-from forecast.utils.utils import (
-    generate_date_range,
-    get_testing_params,
-    interact_categorical_numerical,
-)
 
 
 def featureengineering_test(
@@ -154,7 +153,7 @@ def moving_average_variables(
         store_name=None,
         rolling_function="ewm",
         freq=aggregation_level,
-        parallel=True,
+        parallel=False,
     )
 
     # Apply rolling mean
@@ -169,7 +168,7 @@ def moving_average_variables(
         store_name=False,
         rolling_function="rolling",
         freq=aggregation_level,
-        parallel=True,
+        parallel=False,
         parent_process="feature_enginnering",
     )
 
@@ -189,6 +188,15 @@ if __name__ == "__main__":
         df = pd.read_csv("../data/preprocess/commit_series_expansion_test.csv")
     else:
         df = pd.read_csv("../data/preprocess/commit_series_expansion.csv")
+
+    df["date"] = pd.to_datetime(df.date)
+    max_min_date = datetime.today()
+    for repo in df.repo_name.unique():
+        df_repo = df[df.repo_name == repo]
+        max_repo_date = df_repo.date.max()
+        if max_repo_date < max_min_date:
+            max_min_date = max_repo_date
+    df = df[df.date <= max_min_date]
 
     df_window_mean, df_window_ewm = moving_average_variables(
         df, date_column, lag_list, rolling_list

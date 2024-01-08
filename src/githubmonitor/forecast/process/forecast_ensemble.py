@@ -9,12 +9,14 @@ from typing import List, Tuple
 import joblib
 import numpy as np
 import pandas as pd
+
+# TODO: Ruff is forcing us to define the following instructions after the import. For testing this script separately rearange the order of these lines of code.
+from forecast.utils.utils import convert_to_first_monday_of_week
 from sklearn.linear_model import ElasticNet
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from tqdm import tqdm
 from tslearn.clustering import TimeSeriesKMeans
-import pdb
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 # Append the 'src' directory to the Python path
@@ -22,54 +24,11 @@ src_dir = os.path.abspath(os.path.join(current_dir, "../.."))
 sys.path.append(src_dir)
 logging.basicConfig(level=logging.INFO)
 
-# TODO: Ruff is forcing us to define the following instructions after the import. For testing this script separately rearange the order of these lines of code.
-from forecast.utils.utils import convert_to_first_monday_of_week
 
-
-def prepare_predictions(path_original: str, cut_date, retrain_models: bool) -> pd.DataFrame:
-    """Prepare predictions DataFrame based on the original data.
-
-    Args:
-        path_original (str): The file path of the original data.
-        retrain_models (bool): Flag indicating whether to retrain models or not.
-
-    Returns:
-        pd.DataFrame: DataFrame containing the prepared predictions with columns:
-            - Date: Date of the prediction.
-            - model_family: Model family associated with the predictions.
-            - Commit Real: Actual commit counts.
-            - Commit Forecast: Forecasted commit counts.
-            - Repository: Repository name.
-
-    Raises:
-        FileNotFoundError: If the specified file path does not exist.
-    """
-    df_forecast_D = pd.DataFrame()
-
-    try:
-        df = pd.read_csv(path_original)
-    except FileNotFoundError as e:
-        raise FileNotFoundError(f"File not found at path: {path_original}") from e
-
-    model_path_parts = path_original.split("/")[-1].split("_")
-    model = model_path_parts[-2]
-    df["model_family"] = model
-    df_forecast_D = df.copy()
-
-    df_forecast_D["Date"] = pd.to_datetime(df_forecast_D.Date)
-    df_forecast_commits = df_forecast_D[
-        ["Date", "model_family", "Commit Real", "Commit Forecast", "Repository"]
-    ]
-    df_forecast_commits = df_forecast_commits[df_forecast_commits.Date < cut_date]
-
-    if not retrain_models:  # We don't have the actual values.
-        df_forecast_commits["Commit Forecast"] = np.nan
-
-    return df_forecast_commits
-
-
-def prepare_all_models(retrain_models: bool, cut_date,  production=False) -> pd.DataFrame:
-    """Prepare predictions for all models.
+def prepare_all_models(
+    retrain_models: bool, cut_date, production=False
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Prepare model predictions to be pivoted.
 
     Args:
         retrain_models (bool): Flag indicating whether to retrain models or not.
@@ -89,18 +48,47 @@ def prepare_all_models(retrain_models: bool, cut_date,  production=False) -> pd.
 
     for model in tqdm(["randomforest", "xgboost"]):
         if production:
-            path_original = f"githubmonitor/forecast/data/process/predictions_{model}.csv"
+            path_original = f"githubmonitor/forecast/data/process/predictions_{model}_production.csv"
         else:
             path_original = f"../data/process/predictions_{model}.csv"
-        df_forecast_prepared = prepare_predictions(path_original, cut_date, retrain_models)
+
+        try:
+            df = pd.read_csv(path_original)
+        except FileNotFoundError as e:
+            raise FileNotFoundError(f"File not found at path: {path_original}") from e
+
+        df_forecast_D = pd.DataFrame()
+        df["model_family"] = model
+        df_forecast_D = df.copy()
+
+        df_forecast_D["Date"] = pd.to_datetime(df_forecast_D.Date)
+        df_forecast_commits = df_forecast_D[
+            ["Date", "model_family", "Commit Real", "Commit Forecast", "Repository"]
+        ]
+        df_forecast_commits = df_forecast_commits[df_forecast_commits.Date < cut_date]
+
         if len(df_forecast_prepared_all) == 0:
-            df_forecast_prepared_all = df_forecast_prepared
+            df_forecast_prepared_all = df_forecast_commits
         else:
             df_forecast_prepared_all = pd.concat(
-                [df_forecast_prepared, df_forecast_prepared_all], ignore_index=True
+                [df_forecast_commits, df_forecast_prepared_all], ignore_index=True
             )
 
-    return df_forecast_prepared_all
+    df_forecast_prepared_all["Date"] = pd.to_datetime(df_forecast_prepared_all["Date"])
+
+    df_forecast_prepared_all = (
+        df_forecast_prepared_all[
+            ["Repository", "Date", "Commit Forecast", "Commit Real", "model_family"]
+        ]
+        .groupby(["Date", "Repository", "model_family"])
+        .first()
+        .reset_index()
+    )
+    df_models = df_forecast_prepared_all.pivot(
+        index=["Repository", "Date"], columns="model_family", values="Commit Forecast"
+    ).reset_index()
+
+    return df_forecast_prepared_all, df_models
 
 
 def test_uniqueness_branch_date(df: pd.DataFrame) -> None:
@@ -260,7 +248,9 @@ def create_forecast_horizon(df: pd.DataFrame) -> pd.DataFrame:
     return df[selected_columns]
 
 
-def create_month_dummy(df: pd.DataFrame, retrain_models: bool, production:bool=False):
+def create_month_dummy(
+    df: pd.DataFrame, retrain_models: bool, production: bool = False
+):
     """Creates dummy variables for each month of the year based on the 'Date' column.
 
     This function is designed to be part of a script that trains an ensemble model using
@@ -281,7 +271,9 @@ def create_month_dummy(df: pd.DataFrame, retrain_models: bool, production:bool=F
     df["month"] = df.Date.dt.month
 
     if production:
-        encoder_filename = os.path.abspath("githubmonitor/forecast/process/models/dummy_encoder.joblib")
+        encoder_filename = os.path.abspath(
+            "githubmonitor/forecast/process/models/dummy_encoder.joblib"
+        )
     else:
         encoder_filename = os.path.abspath("./models/dummy_encoder.joblib")
 
@@ -324,7 +316,7 @@ def create_cluster(
     n_cluster: int = 8,
     target: str = "commit_count",
     retrain_models: bool = True,
-    production:bool = False,
+    production: bool = False,
 ) -> np.ndarray:
     """Creates clusters based on the 'target' last year trends, assigning each branch to a different cluster.
 
@@ -380,16 +372,83 @@ def create_cluster(
         joblib.dump(model, cluster_filename)
     else:
         if production:
-            cluster_filename = os.path.abspath("githubmonitor/forecast/process/models/cluster.joblib")  # Last time model was tuned with 1 year data
+            cluster_filename = os.path.abspath(
+                "githubmonitor/forecast/process/models/cluster.joblib"
+            )  # Last time model was tuned with 1 year data
         else:
-            cluster_filename = os.path.abspath("./models/cluster.joblib")  # Last time model was tuned with 1 year data
+            cluster_filename = os.path.abspath(
+                "./models/cluster.joblib"
+            )  # Last time model was tuned with 1 year data
         model = joblib.load(cluster_filename)
         predicted_labels = model.predict(time_series_data_fitted)
 
     return predicted_labels
 
 
-def cluster_indicator(df: pd.DataFrame, predicted_labels: np.ndarray, n_cluster:int) -> pd.DataFrame:
+def set_cluster(
+    df: pd.DataFrame,
+    date_col: str,
+    index_cols: List[str],
+    target: str = "commit_count",
+) -> np.ndarray:
+    """Creates clusters based on the 'target' last year trends, assigning each branch to a different cluster.
+
+    This function is designed to analyze time series behavior for each branch in a repository
+    and create clusters based on the trends observed in the specified 'target' column (e.g., 'commit_count').
+    The clustering is performed using Time Series K-Means, and the resulting cluster labels are returned.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame containing time series data.
+        n_cluster (int, optional): Number of clusters to create. Defaults to 8.
+        target (str, optional): Name of the target column for clustering. Defaults to "commit_count".
+        retrain_models (bool, optional): Flag indicating whether to retrain the clustering model. Defaults to True.
+
+    Returns:
+        np.ndarray: Array of cluster labels assigned to each branch.
+
+    Note:
+        Ensure that the 'date' and 'repo_name' columns are present in the DataFrame for proper clustering.
+
+    Example:
+        ```
+        df_clustered = create_cluster(df, n=8, target="commit_count", retrain_models=True)
+        ```
+    """
+    df_week_series = weekly_group(
+        df,
+        date_col=date_col,
+        index_cols=index_cols,
+        sum_cols=[target],
+        mean_cols=[],
+    )
+
+    data_60weeks = df_week_series.sort_values(date_col, ascending=True)[-60:][target]
+    time_series_data = []
+    time_series_data.append(data_60weeks.values)
+
+    # Standardize time series data
+    scaler = StandardScaler()
+    time_series_data_fitted = [
+        scaler.fit_transform(ts.reshape(-1, 1)) for ts in time_series_data
+    ]
+
+    cluster_filename = os.path.abspath(
+        "githubmonitor/forecast/process/models/cluster.joblib"
+    )  # Last time model was tuned with 1 year data
+
+    model = joblib.load(cluster_filename)
+    predicted_labels = model.predict(time_series_data_fitted)
+
+    return predicted_labels
+
+
+def cluster_indicator(
+    df: pd.DataFrame,
+    predicted_labels: np.ndarray,
+    n_cluster: int,
+    retrain_models: bool,
+    index_col: str,
+) -> pd.DataFrame:
     """Creates a dummy variable for each of the clusters.
 
     Each branch gets assigned 1 for only 1 of the clusters, and then it reports a value of 0 for all
@@ -399,6 +458,7 @@ def cluster_indicator(df: pd.DataFrame, predicted_labels: np.ndarray, n_cluster:
         df (pd.DataFrame): Input DataFrame containing time series data.
         predicted_labels (np.ndarray): Array of cluster labels assigned to each branch.
         n_cluster: Number of clusters.
+        retrain_models: if true, cluster variables are created setting value to 0
 
     Returns:
         pd.DataFrame: DataFrame with cluster indicators as dummy variables.
@@ -414,34 +474,27 @@ def cluster_indicator(df: pd.DataFrame, predicted_labels: np.ndarray, n_cluster:
     """
     # Add the cluster labels to the original DataFrame
     cluster_labels = []
-    repo_idxs = df["repo_name"].unique()
+    repo_idxs = df[index_col].unique()
 
     for label, repo_idx in zip(predicted_labels, repo_idxs):
-        cluster_labels.extend([label] * len(df[df["repo_name"] == repo_idx]))
+        cluster_labels.extend([label] * len(df[df[index_col] == repo_idx]))
 
     df["cluster"] = cluster_labels
     df = (
-        df.groupby(["repo_name", "cluster"])
-        .first()
-        .reset_index()[["repo_name", "cluster"]]
+        df.groupby([index_col, "cluster"]).first().reset_index()[[index_col, "cluster"]]
     )
-    df = df.rename(columns={"repo_name": "Repository"})
-    if retrain_models:
-        # Create an instance of OneHotEncoder
-        encoder = OneHotEncoder(sparse=False)
-        # Fit and transform the 'Cluster_Labels' column to get dummy variables
-        dummy_variables = encoder.fit_transform(df[["cluster"]])
-        # Create a new DataFrame with dummy variable column names
-        df_dummt = pd.DataFrame(
-            dummy_variables,
-            columns=[f"Cluster_{i}" for i in range(dummy_variables.shape[1])],
-        )
-        df = pd.concat([df, df_dummt], axis=1)
-    else:
-        for i in range(n_cluster):
-            col = f"Cluster_{i}"
-            if i not in df.columns:
-                df[col] = 0 #Complete clusters accordingly
+    df = df.rename(columns={index_col: "Repository"})
+
+    # Create an instance of OneHotEncoder
+    encoder = OneHotEncoder(sparse=False)
+    # Fit and transform the 'Cluster_Labels' column to get dummy variables
+    dummy_variables = encoder.fit_transform(df[["cluster"]])
+    # Create a new DataFrame with dummy variable column names
+    df_dummt = pd.DataFrame(
+        dummy_variables,
+        columns=[f"Cluster_{i}" for i in range(dummy_variables.shape[1])],
+    )
+    df = pd.concat([df, df_dummt], axis=1)
 
     return df
 
@@ -451,7 +504,9 @@ def train_elasticnet_ensemble_model(
     target: str = "commit_count",
     retrain_models: bool = True,
     load_model: bool = False,
-    production:bool = False
+    production: bool = False,
+    date_col: str = "date",
+    index_col: str = "repo_name",
 ) -> Tuple[ElasticNet, pd.DataFrame]:
     """Train an ensemble model using ElasticNet regression.
 
@@ -479,20 +534,47 @@ def train_elasticnet_ensemble_model(
     test_uniqueness_branch_date(df)
     # Prepare training and testing sets for the ElasticNet model
     # Delete all unavailable columns at time t
-    features = [
-        x
-        for x in df.columns
-        if x != "commit_count" and x != "date" and x != "repo_name" and x != "index"
-    ]
-
     y = df[target]
-    X = df[features]
+
+    column_order = [
+        "Repository",
+        "Date",
+        "randomforest",
+        "xgboost",
+        "month",
+        "cluster",
+        "Cluster_0",
+        "Cluster_1",
+        "Cluster_2",
+        "Cluster_3",
+        "Cluster_4",
+        "Cluster_5",
+        "Cluster_6",
+        "Cluster_7",
+        "Month_1",
+        "Month_2",
+        "Month_3",
+        "Month_4",
+        "Month_5",
+        "Month_6",
+        "Month_7",
+        "Month_8",
+        "Month_9",
+        "Month_10",
+        "Month_11",
+        "Month_12",
+        "horizon_indicator",
+    ]
+    X = df[column_order]
+
     del X["Date"]
     del X["Repository"]
 
     # Create an instance of the ElasticNet model
     if production:
-        model_filename = "githubmonitor/forecast/process/models/modelperformance_elasticnet.joblib"
+        model_filename = (
+            "githubmonitor/forecast/process/models/modelperformance_elasticnet.joblib"
+        )
     else:
         model_filename = "./models/modelperformance_elasticnet.joblib"
 
@@ -547,21 +629,7 @@ if __name__ == "__main__":
         all_entries_path = "../data/preprocess/featureengineering.csv"
 
     df_all = pd.read_csv(all_entries_path)
-    df_forecast = prepare_all_models(retrain_models, cut_date=cut_date)
-    df_forecast["Date"] = pd.to_datetime(df_forecast["Date"])
-
-    df_forecast = (
-        df_forecast[
-            ["Repository", "Date", "Commit Forecast", "Commit Real", "model_family"]
-        ]
-        .groupby(["Date", "Repository", "model_family"])
-        .first()
-        .reset_index()
-    )
-    df_models = df_forecast.pivot(
-        index=["Repository", "Date"], columns="model_family", values="Commit Forecast"
-    ).reset_index()
-
+    df_forecast, df_models = prepare_all_models(retrain_models, cut_date=cut_date)
     df_forecast_month = create_month_dummy(df_models, retrain_models=retrain_models)
 
     test_uniqueness_branch_date(df_models)
@@ -570,16 +638,23 @@ if __name__ == "__main__":
     df_target = (
         df_target.groupby(["Repository", "Date"])["Commit Real"].first().reset_index()
     )
-    n_cluster =8
+    n_cluster = 8
     predicted_labels = create_cluster(
-        df=df_all, n_cluster=n_cluster, retrain_models=retrain_models, target="commit_count"
+        df=df_all,
+        n_cluster=n_cluster,
+        retrain_models=retrain_models,
+        target="commit_count",
     )
-    df_clusters = cluster_indicator(df_all, predicted_labels)
-    raise ValueError
+    df_clusters = cluster_indicator(
+        df_all,
+        predicted_labels,
+        retrain_models=True,
+        n_cluster=n_cluster,
+        index_col="repo_name",
+    )
     df_lr = df_models.merge(df_clusters, on="Repository", how="left")
     test_uniqueness_branch_date(df_lr)
     test_uniqueness_branch_date(df_forecast_month)
-
     df_model_input = df_lr.merge(
         df_forecast_month, on=["Repository", "Date"], how="inner"
     )

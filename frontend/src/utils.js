@@ -221,7 +221,7 @@ export const fetchLastIssue = async (owner, repo) => {
         })
 
         // Check if there's at least one issue
-        if (response.data.length > 0) {
+        if (response.data) {
             title = response.data[0].title;
             body =response.data[0].body;
             return (title + " | " + body);
@@ -248,7 +248,7 @@ export const fetchDescription = async (owner, repo) => {
       })
     let description = ""
     // Check if there's at least one issue
-    if (response.length > 0) {
+    if (response.data) {
         description =response.data.description;
         return description
     }
@@ -265,14 +265,12 @@ export const fetchDescription = async (owner, repo) => {
  * @param {string} owner - Owner of the repository
  * @returns {Object[]} - List of objects containning the forecast, sentiment analysis and project description
  */
-export const getRepoInfo = async (owner, repo) => {
+export const getRepoForecast = async (owner, repo) => {
     try {
       // Fetch all commits for the specified repository
-      let test =true
+      let test =false
       let commitsData = []
       let plotData = []
-      let repoIssue = ""
-      let repoDescription = ""
       if(test){
         commitsData = commitsData;
         plotData = weeklyCommits(commitsData);
@@ -280,34 +278,55 @@ export const getRepoInfo = async (owner, repo) => {
       }else{
         console.log(`owner: ${owner}`);
         console.log(`repo: ${repo}`);
-
-
+        commitsData = await getAllCommits(owner, repo);
         plotData = weeklyCommits(commitsData);
       }
-      // Set the commits data to the state
-      // Group commits into weekly intervals and calculate total commits for each week
-      // Format the commit data for chart presentation
-      let formattedPlotingData = formatChatData(plotData);
 
       let formatBackendPost = {
         dates: plotData.map((data) => data.startDate),
         commits:plotData.map((data) => data.totalCommits),
         };
 
-        repoDescription = await fetchDescription(owner, repo);
-        repoIssue = await fetchLastIssue(owner, repo);
-        commitsData = await getAllCommits(owner, repo);
-
-      let llmDescription = await getLLMDescription(repoDescription)
-      let sentimentCategory = await getLLMSentiment(repoIssue)
       let forecast = await getForecast(formatBackendPost)
+      console.log(`*** forecast: ${forecast}`);
 
 
       let formatteForecast = formatForecastData(forecast);
-      response = {
-        "forecast": formatteForecast,
+
+      return formatteForecast
+    } catch (error) {
+      console.error('Error fetching commits:', error.message);
+      // Handle errors (e.g., display an error message to the user)
+    }
+};
+
+
+
+
+/**
+ * Search for a Github repository information and pass it as input for the llm models
+ *
+ * @param {string} repo - Repository name
+ * @param {string} owner - Owner of the repository
+ * @returns {Object[]} - List of objects containning the forecast, sentiment analysis and project description
+ */
+export const getRepoInfo = async (owner, repo) => {
+    try {
+      // Fetch LLM Infor
+    let repoIssue = ""
+    let repoDescription = ""
+
+    repoDescription = await fetchDescription(owner, repo);
+    repoIssue = await fetchLastIssue(owner, repo);
+
+
+      let llmDescription = await getLLMDescription(repoDescription)
+      console.log(` *** repoDescription: ${repoDescription}`);
+      let sentimentCategory = await getLLMSentiment(repoIssue)
+
+      let response = {
         "llmDescription": llmDescription,
-        "sentimentCategory": sentimentCategory
+        "sentimentCategory": sentimentCategory,
       }
 
       return response
@@ -316,6 +335,9 @@ export const getRepoInfo = async (owner, repo) => {
       // Handle errors (e.g., display an error message to the user)
     }
 };
+
+
+
 
   /**
    * Gets user information by sending a request to the server.
@@ -358,19 +380,19 @@ export const getRepoInfo = async (owner, repo) => {
    */
   export const getLLMDescription = async (repoDescription) => {
     try {
-      const response = await fetch(
-        `http://localhost:8000/langchain/get_llmdescription`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: repoDescription
-        }),
-        }
-      );
-      var data = await response.json();
-      console.log(`***** data: ${JSON.stringify( data )}`);
-      return data;
+        let formatedQuery = "*** " + repoDescription;
+        const response = await fetch(
+            `http://localhost:8000/langchain/nlp_description`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                query: formatedQuery
+            }),
+            }
+          );
+      var llmDescription = await response.json();
+      return llmDescription.description;
     } catch (error) {
       return {
         response:
@@ -389,18 +411,18 @@ export const getRepoInfo = async (owner, repo) => {
   export const getLLMSentiment = async (repoIssue) => {
     try {
       const response = await fetch(
-        `http://localhost:8000/langchain/get_sentiment`,
+        `http://localhost:8000/langchain/issue_sentiment`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            message: repoIssue
+            query: repoIssue
         }),
         }
       );
       var sentimentCategory = await response.json();
       console.log(`***** Sentiment Analysis: ${JSON.stringify( sentimentCategory )}`);
-      return sentimentCategory;
+      return sentimentCategory.category;
     } catch (error) {
       return {
         response:
@@ -408,3 +430,24 @@ export const getRepoInfo = async (owner, repo) => {
       };
     }
   };
+
+
+  export const interactLLM = async (conversationId, message) => {
+    try {
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL}/${getConversationType()}/stream`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversation_id: conversationId, message: message }),
+        }
+      )
+      const reader = response.body.getReader()
+      return reader
+    } catch (error) {
+      return {
+        response:
+          "**Sorry for the inconvenience, I have encountered an error. Please try again later!**",
+      }
+    }
+  }

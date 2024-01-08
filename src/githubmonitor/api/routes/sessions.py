@@ -14,7 +14,7 @@ from githubmonitor.api.routes.repositories import create_forecast
 
 logging.basicConfig(level=logging.INFO)
 # Router basic config
-scan_router = APIRouter(
+sessions_router = APIRouter(
     prefix="/sessions",
     tags=[
         "sessions",
@@ -23,7 +23,7 @@ scan_router = APIRouter(
 )
 
 
-@scan_router.post("/start_session")
+@sessions_router.post("/start_session")
 async def scan_repo(
     message: githubmonitor.api.schemas.RepositorySchema
 ) -> StreamingResponse:

@@ -13,12 +13,6 @@ import joblib
 import numpy as np
 import pandas as pd
 
-current_dir = os.path.dirname(os.path.realpath(__file__))
-# Append the 'src' directory to the Python path
-src_dir = os.path.abspath(os.path.join(current_dir, "../.."))
-sys.path.append(src_dir)
-logging.basicConfig(level=logging.INFO)
-
 # TODO: Ruff is forcing us to define the following instructions after the import. For testing this script separately rearange the order of these lines of code.
 from forecast.utils.utils import (
     interact_categorical_numerical,
@@ -26,6 +20,12 @@ from forecast.utils.utils import (
     preprocess_data,
 )
 from tqdm import tqdm
+
+current_dir = os.path.dirname(os.path.realpath(__file__))
+# Append the 'src' directory to the Python path
+src_dir = os.path.abspath(os.path.join(current_dir, "../.."))
+sys.path.append(src_dir)
+logging.basicConfig(level=logging.INFO)
 
 
 def rename_predictions(df: pd.DataFrame, df_prediction: pd.DataFrame) -> pd.DataFrame:
@@ -199,7 +199,6 @@ def filter_dates(
     Returns:
         pd.DataFrame: Filtered DataFrame.
     """
-
     # Data Preprocessing
     df_predicted = df.copy()
     # Give minimal space for the interact_categoprical_numerical function to perform operations (increase speed)
@@ -222,7 +221,7 @@ def make_iterative_prediction(
     evaluation_window,
     model_features,
     prediction_window,
-    production =  False
+    production=False,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Crete iterative prediction by passing the initial Data and the updating the DataFrame with new predictions. The model is feeded every iteration with a new set of average window and lag variables. Each model makes it's own predictions over a time frame = PREDICTION_WINDOW.
 
@@ -247,7 +246,9 @@ def make_iterative_prediction(
     df_2month_validtaion = pd.DataFrame()
     df_3month_validtaion = pd.DataFrame()
     if production:
-        model_filename = f"githubmonitor/forecast/process/models/commit_count_{model}.joblib"
+        model_filename = (
+            f"githubmonitor/forecast/process/models/commit_count_{model}.joblib"
+        )
     else:
         model_filename = f"./models/commit_count_{model}.joblib"
     model_loaded = joblib.load(model_filename)
@@ -259,7 +260,7 @@ def make_iterative_prediction(
         min_date=min_date,
     )
     for i in tqdm(range(prediction_window)):
-        prediction_date = df_predicted.date.max() + timedelta(days=1)
+        prediction_date = df_predicted.date.max() + timedelta(days=7)
 
         upper_date = df_predicted.date.max()  # * UN-STANDARDIZED
         lower_date = prediction_date - timedelta(days=(evaluation_window * 7))
@@ -301,18 +302,14 @@ def make_iterative_prediction(
             parallel=True,
         )
 
-        df_index = df_iteration[[ "date", "repo_name"]].copy()
-        df_index = df_index.merge(df_window_mean, on=["date", "repo_name"], how="outer")
-        df_index = df_index.merge(df_window_ewm, on=["date", "repo_name"], how="outer")
+        df_index = df_iteration[["date", "repo_name"]].copy()
+        df_index = df_index.merge(df_window_mean, on=["date", "repo_name"], how="left")
+        df_index = df_index.merge(df_window_ewm, on=["date", "repo_name"], how="left")
 
         df_index = df_index[
             (df_index.date >= lower_date) & (df_index.date <= prediction_date)
         ]
-        features = [
-            x
-            for x in df_index.columns
-            if x not in ["date", "repo_name"]
-        ]
+        features = [x for x in df_index.columns if x not in ["date", "repo_name"]]
         df_index = df_index.sort_values(["repo_name", "date"], ascending=True)
         df_model_input = df_index[features]
         df_predicted = update_with_predictions(
@@ -323,7 +320,7 @@ def make_iterative_prediction(
             scalers_dict=scalers_dict,
             predicted_date=predicted_date,
             model_loaded=model_loaded,
-            model_features=model_features
+            model_features=model_features,
         )
 
         df_entry = df_predicted[df_predicted.date == predicted_date]
@@ -445,7 +442,7 @@ def create_model_entry(last_obs: pd.DataFrame) -> Tuple[pd.DataFrame, datetime]:
     Returns:
         Tuple[pd.DataFrame, datetime]: New DataFrame and the last date reported.
     """
-    date = last_obs["date"] + timedelta(days=1)
+    date = last_obs["date"] + timedelta(days=7)
     new_obs_dict = {
         "date": date.values[0],
         "commit_count": 0,
@@ -478,8 +475,17 @@ def get_scalers(df: pd.DataFrame) -> dict:
 
 
 def create_iterative_forecast(
-    df: pd.DataFrame, model, model_features, forecast_start, lag_list, rolling_list, prediction_window, min_date, evaluation_window, parallel=True,
-    production=False
+    df: pd.DataFrame,
+    model,
+    model_features,
+    forecast_start,
+    lag_list,
+    rolling_list,
+    prediction_window,
+    min_date,
+    evaluation_window,
+    parallel=True,
+    production=False,
 ) -> pd.DataFrame:
     """Base function that handles the iterative prediction model.
 
@@ -507,8 +513,8 @@ def create_iterative_forecast(
                 min_date=min_date,
                 evaluation_window=evaluation_window,
                 production=production,
-                prediction_window =prediction_window,
-                model_features=model_features
+                prediction_window=prediction_window,
+                model_features=model_features,
             )
             results.append(result)
             concurrent.futures.wait(results)
@@ -543,21 +549,39 @@ def create_iterative_forecast(
             evaluation_window=evaluation_window,
             production=production,
             prediction_window=prediction_window,
-            model_features=model_features
+            model_features=model_features,
         )
 
         if len(df_predicted_all) == 0:
             df_predicted_all = rename_predictions(df_predicted, df_prediction)
         else:
             df_predicted_renamed = rename_predictions(df_predicted, df_prediction)
-            df_predicted_all = pd.concat([df_predicted_all, df_predicted_renamed])
-    return df_predicted_all
+            df_predicted_all = pd.concat([df_predicted, df_predicted_renamed])
+    #! IMPORTANT -  PART of the forecast.
+    if production:
+        df_out_production = df_predicted.rename(
+            columns={
+                "repo_name": "Repository",
+                "date": "Date",
+                "commit_count": "Commit Forecast",
+            }
+        )
+        df_out_production["Commit Real"] = 0
+        df_out_production.to_csv(
+            f"githubmonitor/forecast/data/process/predictions_{model}_production.csv"
+        )
+        # Date bigger than toda
+        return df_out_production
+
+    else:
+        df_predicted_all.to_csv(f"../data/process/predictions_{model}.csv")
+        return df_predicted_all
 
 
 if __name__ == "__main__":
     __spec__ = "ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>)"
     TEST = True
-    parallel = False
+    parallel = True
     prediction_contained = True
     retrain_models = True
     lag_list = [2, 4, 6, 10]
@@ -566,15 +590,40 @@ if __name__ == "__main__":
     evaluation_window = max(lag_list) + max(rolling_list) + 1
     # ? Note: that we are going to be placed at t='2021-12-26'  the we need to start the iteration at MAX date to cover predictions until '2021-12-26'. Notice also that you will need at least evaluation_window observations before max date in order to create predictions for forecast_start. The code advance one week at a time to recalculate the predictions using previous predictions.
 
-    model_features =['sum_repo_name_on_commit_count_with_roll2_lag2_ewm', 'sum_repo_name_on_commit_count_with_roll4_lag2_ewm', 'sum_repo_name_on_commit_count_with_roll6_lag2_ewm', 'sum_repo_name_on_commit_count_with_roll2_lag4_ewm', 'sum_repo_name_on_commit_count_with_roll4_lag4_ewm', 'sum_repo_name_on_commit_count_with_roll6_lag4_ewm', 'sum_repo_name_on_commit_count_with_roll2_lag6_ewm', 'sum_repo_name_on_commit_count_with_roll4_lag6_ewm', 'sum_repo_name_on_commit_count_with_roll6_lag6_ewm', 'sum_repo_name_on_commit_count_with_roll2_lag10_ewm', 'sum_repo_name_on_commit_count_with_roll4_lag10_ewm', 'sum_repo_name_on_commit_count_with_roll6_lag10_ewm', 'sum_repo_name_on_commit_count_with_roll2_lag2_rolling', 'sum_repo_name_on_commit_count_with_roll4_lag2_rolling', 'sum_repo_name_on_commit_count_with_roll6_lag2_rolling', 'sum_repo_name_on_commit_count_with_roll2_lag4_rolling', 'sum_repo_name_on_commit_count_with_roll4_lag4_rolling', 'sum_repo_name_on_commit_count_with_roll6_lag4_rolling', 'sum_repo_name_on_commit_count_with_roll2_lag6_rolling', 'sum_repo_name_on_commit_count_with_roll4_lag6_rolling', 'sum_repo_name_on_commit_count_with_roll6_lag6_rolling', 'sum_repo_name_on_commit_count_with_roll2_lag10_rolling', 'sum_repo_name_on_commit_count_with_roll4_lag10_rolling', 'sum_repo_name_on_commit_count_with_roll6_lag10_rolling']
+    model_features = [
+        "sum_repo_name_on_commit_count_with_roll2_lag2_ewm",
+        "sum_repo_name_on_commit_count_with_roll4_lag2_ewm",
+        "sum_repo_name_on_commit_count_with_roll6_lag2_ewm",
+        "sum_repo_name_on_commit_count_with_roll2_lag4_ewm",
+        "sum_repo_name_on_commit_count_with_roll4_lag4_ewm",
+        "sum_repo_name_on_commit_count_with_roll6_lag4_ewm",
+        "sum_repo_name_on_commit_count_with_roll2_lag6_ewm",
+        "sum_repo_name_on_commit_count_with_roll4_lag6_ewm",
+        "sum_repo_name_on_commit_count_with_roll6_lag6_ewm",
+        "sum_repo_name_on_commit_count_with_roll2_lag10_ewm",
+        "sum_repo_name_on_commit_count_with_roll4_lag10_ewm",
+        "sum_repo_name_on_commit_count_with_roll6_lag10_ewm",
+        "sum_repo_name_on_commit_count_with_roll2_lag2_rolling",
+        "sum_repo_name_on_commit_count_with_roll4_lag2_rolling",
+        "sum_repo_name_on_commit_count_with_roll6_lag2_rolling",
+        "sum_repo_name_on_commit_count_with_roll2_lag4_rolling",
+        "sum_repo_name_on_commit_count_with_roll4_lag4_rolling",
+        "sum_repo_name_on_commit_count_with_roll6_lag4_rolling",
+        "sum_repo_name_on_commit_count_with_roll2_lag6_rolling",
+        "sum_repo_name_on_commit_count_with_roll4_lag6_rolling",
+        "sum_repo_name_on_commit_count_with_roll6_lag6_rolling",
+        "sum_repo_name_on_commit_count_with_roll2_lag10_rolling",
+        "sum_repo_name_on_commit_count_with_roll4_lag10_rolling",
+        "sum_repo_name_on_commit_count_with_roll6_lag10_rolling",
+    ]
 
     if prediction_contained:
         if retrain_models:
             file_path = "../data/preprocess/featureengineering_test.csv"
             df_test = pd.read_csv(file_path)
-            df_test['date'] = pd.to_datetime(df_test['date'])
+            df_test["date"] = pd.to_datetime(df_test["date"])
             min_date = df_test.date.min()
-            prediction_window = 104 #two years
+            prediction_window = 104  # two years
             forecast_start = cut_date - timedelta(days=(prediction_window * 7))
 
         else:
@@ -604,20 +653,18 @@ if __name__ == "__main__":
             model=model,
             forecast_start=forecast_start,
             lag_list=lag_list,
-            prediction_window =prediction_window,
+            prediction_window=prediction_window,
             rolling_list=rolling_list,
             parallel=parallel,
             evaluation_window=evaluation_window,
             min_date=min_date,
-            model_features = model_features,
+            model_features=model_features,
         )
 
         end_time = time.time()
         elapsed_time = round(end_time - start_time)
 
         logging.info(f"Time taken for the operation: {elapsed_time} seconds")
-        # SAVE
-        df_predicted_all.to_csv(f"../data/process/predictions_{model}.csv")
         text_file = open(f"logs_{model}_November.txt", "w")
         log_string = f"""
         MODEL: {model}

@@ -5,8 +5,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from githubmonitor.api.routes.scans import scan_router
-from githubmonitor.api.routes.transactions import transaction_router
+from githubmonitor.api.routes.langchain import llm_router
+from githubmonitor.api.routes.repositories import repositories_router
+from githubmonitor.api.routes.sessions import sessions_router
+from githubmonitor.api.routes.users import users_router
 from loguru import logger
 
 app = FastAPI(
@@ -14,8 +16,10 @@ app = FastAPI(
     description="An application that helps users identify the repositories that will get the most support over the following 3 months.",
     version=SETTINGS.version,
 )
-app.include_router(router=transaction_router)
-app.include_router(router=scan_router)
+app.include_router(router=repositories_router)
+app.include_router(router=sessions_router)
+app.include_router(router=users_router)
+app.include_router(router=llm_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,8 +28,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.mount("/static", StaticFiles(directory="../frontend/build/static"), name="static")
-app.mount("/assets", StaticFiles(directory="../frontend/build/assets"), name="static")
+app.mount("/assets", StaticFiles(directory="../frontend/dist/assets"), name="static")
 
 
 @app.get("/")
@@ -35,7 +38,7 @@ async def read_index() -> HTMLResponse:
     :return: The contents of the index.html file as an HTMLResponse.
     :rtype: HTMLResponse
     """
-    with open("../frontend/build/index.html", "r") as f:
+    with open("../frontend/dist/index.html", "r") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200)
 

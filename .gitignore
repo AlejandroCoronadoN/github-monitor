@@ -144,4 +144,4 @@ poetry.lock
 *.json
 *.txt
 
-configuration.py
+src/config/configuration.py

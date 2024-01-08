@@ -12,32 +12,44 @@
     display: flex;
     height: 60px;
     width: 85%;
-    border-top-right-radius: 4px;
-    border-top-left-radius: 4px;
-    border-bottom-right-radius: 2px;
-    border-bottom-left-radius: 2px;
+
     color: #8383AF; /* Text color */
     font-size: 16px;
     line-height: 18.75px;
     margin-left: 7.5%;
     margin-right: 7.5%;
     margin-top: 15%;
+    flex-direction: row;
 
-    gap: 40px;
-    outline: none;
+
   }
 
-
-  /* Search icon styling */
-  .item-list-icon {
-    position: absolute;
+  .item-list-header-input {
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 2px;
     display: flex;
-    margin-top: 4.7%;
-    margin-left: 21%;
-    width: 49px;
+    width: 89%;
     height: 49px;
     z-index: 1;
     color: #37374A;
+    background-color: #FFFFFF;
+    outline: none;
+    border: none; /* Remove border */
+    padding-left: 7%; /* Adjust the left padding to move text to the right */
+}
+
+  /* Search icon styling */
+  .item-list-icon {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 2px;
+    display: flex;
+    width: 49px;
+    height: 49px;
+    color: #37374A;
+    background-color: #FFFFFF;
+    padding-top: 3.1%;
+    padding-left: 2.1%;
+
   }
 
 
@@ -52,6 +64,7 @@
     .item-list-suggested {
         margin-left: 7.5%;
         margin-right: 7.5%;
+        margin-top: -2.4%;
 
       }
 
@@ -131,8 +144,8 @@
     background: #c2c2f1;
     color: #242432;
     border-radius: 8px;
-    width: 30%;
-    height: 23%;
+    width: 26%;
+    height: 50%;
     text-align: center;
     padding-top: 3%;
 
@@ -146,3 +159,20 @@
 
 
   }
+
+
+    /* State message styling */
+    .description-message {
+        display: flex;
+        width: 85%;
+
+        color: #242432; /* Text color */
+        font-weight: 400;
+        font-size: 14px;
+        line-height: 24px;
+        margin-left: 7.5%;
+        margin-right: 7.5%;
+        margin-top: 6%;
+        position: relative;
+
+      }
