@@ -14,7 +14,6 @@ body {
 
 /* Default monitor size */
 .container {
-
     width: 1600px;
     height: 900px;
     display: flex;

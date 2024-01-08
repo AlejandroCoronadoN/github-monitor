@@ -1,5 +1,5 @@
 import './Plot.css';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS } from 'chart.js/auto';
 
@@ -14,43 +14,67 @@ import { Chart as ChartJS } from 'chart.js/auto';
  */
 const Plot = ({ plotsSeries, hoverIndex }) => {
   // State to store the maximum and minimum values for the y-axis
-  const [maxY, setMaxY] = useState();
-  const [minY, setMinY] = useState();
+  const [maxY, setMaxY] = useState(3);
+  const [minY, setMinY] = useState(-1);
+  const [chartsDatasets, setChartsDatasets] = useState([]);
+  const [chartLabels, setChartLabels] = useState([]);
 
   useEffect(() => {
-    console.log("RepoData UPDATED", plotsSeries);
 
-    // Logic to calculate maxY and minY based on the plotsSeries data
-    if (plotsSeries.length === 1) {
-      const maxYValue = Math.max(...plotsSeries[0].datasets[0].data.slice(0, 7));
-      const minYValue = Math.min(...plotsSeries[0].datasets[0].data.slice(0, 7));
-      const yScaleRange = maxYValue - minYValue;
-      const yMax = maxYValue + yScaleRange * offsetMax;
 
-      if (yMax === 0) {
-        setMaxY(10);
-      } else {
-        setMaxY(yMax);
-      }
-    } else {
-      const maxYValue = Math.max(...plotsSeries.flatMap(series => series.datasets[0].data.slice(0, 7)));
-      const minYValue = Math.min(...plotsSeries.flatMap(series => series.datasets[0].data.slice(0, 7)));
-      const yScaleRange = maxYValue - minYValue;
-      const yMax = maxYValue + yScaleRange * offsetMax;
-
-      if (yMax === 0) {
-        setMaxY(10);
-      } else {
-        setMaxY(yMax);
-      }
-    }
-
+    if(plotsSeries.length === 0){
+        setMaxY(5)
+    }else{
+        const maxYValue = Math.max(...plotsSeries.flatMap(series => series.datasets[0].data.slice(0, 19)));
+        const minYValue = Math.min(...plotsSeries.flatMap(series => series.datasets[0].data.slice(0, 19)));
+        const yScaleRange = maxYValue - minYValue;
+        const yMax = maxYValue + yScaleRange * offsetMax;
+        if (yMax === 0) {
+            setMaxY(5);
+        } else {
+            setMaxY(yMax);
+        }
+    };
+    // allwasy -1, leaves spaces between plots
     setMinY(-1);
+
+    var data =plotsSeries.map((plotData, index) => {
+        let backgroundColor = "#000000";
+
+        // Set background color based on hover status and index
+        if (hoverIndex === 1000) {
+          backgroundColor = colors[index];
+        } else {
+          backgroundColor = colorsHover[index];
+        }
+
+        // Define the dataset for the current repository
+        return {
+          label: '',
+          data: plotData.datasets[0].data.slice(-19),
+          backgroundColor: '#ffffff',
+          borderColor: backgroundColor,
+          borderWidth: 3,
+          hoverBorderWidth: 10,
+          pointRadius: 8,
+          pointHoverRadius: 15,
+          pointHoverBorderColor: 'rgba(0,0,0,0.2)',
+          drawActiveElementsOnTop: false,
+        };
+      });
+
+      var labels = []
+      if(plotsSeries.length !== 0 ){
+        labels =plotsSeries[0].labels.slice(-19);
+      }
+
+      setChartsDatasets(data)
+      setChartLabels(labels) // Only uses first one
   }, [plotsSeries, hoverIndex]);
 
   // Create a unique color for each repository
-  const colors = ['#4CCA8D', '#D65C5C', '#71B7F8', '#4CCA8D', '#D65C5C', '#71B7F8', '#4CCA8D', '#D65C5C', '#71B7F8'];
-  const colorsHover = ['#b4ffdb', '#eaa3a3', '#c2dcf6', '#b4ffdb', '#eaa3a3', '#c2dcf6', '#b4ffdb', '#eaa3a3', '#c2dcf6'];
+  const colors = ['#4CCA8D', '#D65C5C', '#71B7F8'];
+  const colorsHover = ['#b4ffdb', '#eaa3a3', '#c2dcf6'];
 
   // Calculate dynamic max and min values for y-axis
   const offsetMax = 0.01;
@@ -61,32 +85,6 @@ const Plot = ({ plotsSeries, hoverIndex }) => {
     return new Intl.DateTimeFormat('en-US', options).format(date);
   };
 
-  // Generate datasets for the line chart based on the plotsSeries data
-  const chartDatasets = plotsSeries.map((plotData, index) => {
-    let backgroundColor = "#000000";
-
-    // Set background color based on hover status and index
-    if (hoverIndex == 1000) {
-      backgroundColor = colors[index];
-    } else {
-      backgroundColor = index === hoverIndex ? colorsHover[index] : colors[index];
-    }
-
-    // Define the dataset for the current repository
-    const dataset = {
-      label: '',
-      data: plotData.datasets[0].data.slice(-7),
-      backgroundColor: '#ffffff',
-      borderColor: backgroundColor,
-      borderWidth: 3,
-      hoverBorderWidth: 10,
-      pointRadius: 8,
-      pointHoverRadius: 15,
-      pointHoverBorderColor: 'rgba(0,0,0,0.2)',
-      drawActiveElementsOnTop: false,
-    };
-    return dataset;
-  });
 
   // Tooltip handling for the line chart
   const getOrCreateTooltip = (chart) => {
@@ -259,7 +257,7 @@ const Plot = ({ plotsSeries, hoverIndex }) => {
         },
       },
       y: {
-        max: maxY,
+        //max: maxY,
         borderCapStyle: 'round',
         min: minY,
         border: {
@@ -306,7 +304,7 @@ const Plot = ({ plotsSeries, hoverIndex }) => {
           <Line
             width={854}
             height={786}
-            data={{ labels: plotsSeries[0].labels.slice(0, 7), datasets: chartDatasets }}
+            data={{ labels: chartLabels, datasets: chartsDatasets }}
             options={options}
           />
         )}

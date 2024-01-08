@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Star, Trash2 } from 'react-feather';
 import './ItemIterator.css';
 
@@ -14,26 +14,48 @@ import './ItemIterator.css';
  * @param {string} props.selectedColor - The color to highlight the selected item.
  * @returns {JSX.Element} The rendered SelectionDetails component.
  */
-const SelectionDetails = ({ id, key, item, handleSelectionClicked, selectedColor }) => {
+const SelectionDetails = ({
+    id,
+    key,
+    item,
+    handleSelectionClicked,
+    selectedColor,
+    setPlotsSeries,
+    plotsSeries,
+    setHoverIndex,
+}) => {
   // State to manage the selection status of the item.
   const [isSelected, setIsSelected] = useState(false);
 
   // State to manage the visibility of the delete overlay.
   const [isDeleteVisible, setIsDeleteVisible] = useState(false);
 
-  /**
-   * Toggles the selection status of the item.
-   */
-  const handleWhy = () => {
-    setIsSelected(!isSelected);
-  };
 
   /**
    * Toggles the visibility of the delete overlay.
    */
   const handleDelete = () => {
     setIsSelected(!isSelected);
-  };
+
+    // Find the index of the item to be deleted in plotSeries
+    const indexToDelete = plotsSeries.findIndex((plotData) => plotData.id === item.id);
+
+    if (indexToDelete !== -1) {
+        // Remove the item from plotSeries
+        setPlotsSeries((prevPlotSeries) => [
+        ...prevPlotSeries.slice(0, indexToDelete),
+        ...prevPlotSeries.slice(indexToDelete + 1),
+        ]);
+
+        // Update the ids to keep the enumeration
+        setPlotsSeries((prevPlotSeries) =>
+        prevPlotSeries.map((plotData, index) => ({
+            ...plotData,
+            id: index,
+            }))
+            );
+        };
+  }
 
   /**
    * Handles the click event on the selection item.
@@ -41,7 +63,6 @@ const SelectionDetails = ({ id, key, item, handleSelectionClicked, selectedColor
    * @param {object} item - The data object representing the selection item.
    */
   const handleItemClick = (item) => {
-    console.log(`LOG item: ${item}`);
     handleSelectionClicked(item);
     setIsDeleteVisible(!isSelected);
   };
@@ -53,10 +74,15 @@ const SelectionDetails = ({ id, key, item, handleSelectionClicked, selectedColor
 
   // Rendering of the SelectionDetails component.
   return (
-    <div className="item-selection" style={itemSelectionStyle} onClick={() => handleItemClick(item)}>
+    <div className="item-selection"
+        style={itemSelectionStyle}
+        onClick={() => handleItemClick(item)}
+        onMouseEnter={() => setHoverIndex(item.id)}
+        onMouseLeave={() => setHoverIndex(item.id)}
+        >
       <div className="item-set">
         <span className="author-selection">{item.author + ' /'}</span>
-        <span className="repo-selection">{item.repository}</span>
+        <span className="repo-selection">{item.repository.slice(0,15)}</span>
       </div>
       <div className="item-set-details">
         {/* Add the star icon here */}

@@ -1,12 +1,13 @@
-import { searchRepositories } from '../../utils';
-import { useState, useEffect } from 'react';
+import { searchRepositories, weeklyCommits } from '../../utils';
+import React, { useState, useEffect } from 'react';
 import { Search } from 'react-feather';
 import "bootstrap/dist/css/bootstrap.min.css";
 import './RepositoryList.css';
-import { getCommits } from "../../utils";
+import { getRepoInfo } from "../../utils";
 import ItemDetails from './ItemIterator/ItemDetails';
 import SelectionDetails from './ItemIterator/SelectionDetails';
 import repoSuggestions from './repositorySearch.json';
+import RepoFeddback from './RepoFeedback';
 
 /**
  * RepositoryList component displays a list of GitHub repositories with search functionality.
@@ -22,12 +23,33 @@ const RepositoryList = ({
   setSelectedRepositories,
   selectedRepositories,
   setPlotsSeries,
+  plotsSeries,
   setHoverIndex,
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [chartRepo, setChartRepo] = useState({});
   const [colorIndex, setColorIndex] = useState(0);
+  const [loading, setLoading] = useState(false); // New loading state
+  const [requestTimeOut, setrequestTimeOut] = useState(false);
+  const [startTimeOut, setStartTimeOut] = useState(false);
+
+    /**
+     * State hook to manage description for the Loading component
+     *
+     * @type {string} Index of the hovered repository.
+     */
+    const [description, setDescription] = useState("");
+
+    /**
+     * State hook to manage sentimentAnalysis category and insert Emoji
+     *
+     * @type {string} Index of the hovered repository.
+     */
+    const [sentimentCategory, setSentimentCategory] = useState("");
+
+
+
   const colors = ['#4CCA8D', '#71B7F8', '#D65C5C'];
   const localTest = false;
   let timeoutId;
@@ -108,27 +130,19 @@ const RepositoryList = ({
    * @param {Array} newSelectedRepos - Array of newly selected repositories.
    * @returns {Promise<Array>} Array of plot series data.
    */
-  const fetchPlotsSeries = async (newSelectedRepos) => {
+
+  const fetchPlotsSeries = async (item) => {
     try {
-      let allCommits = [];
-      for (const item of newSelectedRepos) {
-        try {
-          const weeklyCommits = await getCommits(item.author, item.repository);
-          allCommits.push(weeklyCommits);
-        } catch (error) {
-          console.error(`Error fetching commits for ${item.author}/${item.repository}:`, error.message);
-          throw error;
-        }
-      }
-      return allCommits;
+      setLoading(true); // Set loading to true before starting the fetch
+      const response = await getRepoInfo(item.author, item.repository)
+      setLoading(false); // Set loading to false after the fetch is complete
+      return response;
     } catch (error) {
-      console.error('Error fetching commits:', error.message);
-      // Handle errors (e.g., display an error message to the user)
+      setLoading(false); // Set loading to false if an error occurs
+      console.error(`Error fetching commits for ${item.author}/${item.repository}:`, error.message);
+      throw error;
     }
   };
-
-  const [requestTimeOut, setrequestTimeOut] = useState(false);
-  const [startTimeOut, setStartTimeOut] = useState(false);
 
   /**
    * Handles pre-change events before updating the input value.
@@ -185,11 +199,31 @@ const RepositoryList = ({
    */
   const handleSuggestionClick = async (item) => {
     setSuggestions([]);
-    let allCommits = [];
     let newSelectedRepos = [...selectedRepositories, item];
     setSelectedRepositories(newSelectedRepos);
-    allCommits = await fetchPlotsSeries(newSelectedRepos);
-    setPlotsSeries(allCommits);
+    let response = await fetchPlotsSeries(item);
+
+    let newCommits = response.forecast
+    let llmDescription = response.forecast
+    let sentimentCategory = response.forecast
+
+    // Check if plotsSeries already has 3 elements
+    if (plotsSeries.length === 3) {
+        // Remove the first element
+        let updatedPlotsSeries = plotsSeries.slice(1);
+        // Update the ids for the remaining elements
+        updatedPlotsSeries = updatedPlotsSeries.map((elem) => ({ ...elem, id: elem.id - 1 }));
+        // Add the new element with id 2
+        updatedPlotsSeries.push({ ...newCommits, id: 2 });
+
+        setPlotsSeries(updatedPlotsSeries);
+    } else {
+        // Add the new element with the next id
+        let newPlotsSeries = [...plotsSeries, { ...newCommits, id: plotsSeries.length }];
+        setPlotsSeries(newPlotsSeries);
+    }
+    setSentimentCategory(sentimentCategory)
+    setDescription(llmDescription)
   };
 
   /**
@@ -198,13 +232,27 @@ const RepositoryList = ({
    * @param {Object} item - Selected repository item.
    */
   const handleSelectionClicked = (item) => {
-    setChartRepo(item);
     setHoverIndex(item.id);
   };
 
   return (
     <div className="repository-list-container">
       <input className="item-list-header" onChange={handleChange} />
+      <div className="item-list-icon">
+            <Search size={22.5} style={{ display: 'block' }} />
+          </div>
+
+      {loading && (
+        <div className="loading-alert">
+          <div className="loading-message">
+            <RepoFeddback
+                description ={description}
+                sentimentCategory = {sentimentCategory}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="item-list-suggested">
         {suggestions.map((item, id) => (
           <div className="item-suggestion" key={id}>
@@ -226,7 +274,7 @@ const RepositoryList = ({
           <div className="search-icon">
             <Search size={49} style={{ display: 'block' }} />
           </div>
-          <span style={{ display: 'block' }}>Search for a Github repository to populate the graph</span>
+          <span className='state-text'>Search for a Github repository to populate the graph</span>
         </div>
       )}
 
@@ -238,6 +286,9 @@ const RepositoryList = ({
               item={item}
               handleSelectionClicked={handleSelectionClicked}
               selectedColor={colors[id]}
+              setPlotsSeries={setPlotsSeries}
+              plotsSeries = {plotsSeries}
+              setHoverIndex={setHoverIndex}
             />
           </div>
         ))}

@@ -1,5 +1,5 @@
 import './App.css';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import Plot from './components/Plot/Plot';
 import RepositoryList from './components/RepositoryList/RepositoryList';
 import jsonData from './data.json'; // Adjust the path as needed
@@ -32,6 +32,8 @@ function App() {
    */
   const [hoverIndex, setHoverIndex] = useState(1000);
 
+
+
   /**
    * Main rendering of the App component.
    *
@@ -51,7 +53,9 @@ function App() {
           setSelectedRepositories={setSelectedRepositories}
           selectedRepositories={selectedRepositories}
           setPlotsSeries={setPlotsSeries}
+          plotsSeries = {plotsSeries}
           setHoverIndex={setHoverIndex}
+
         />
       </div>
     </>
