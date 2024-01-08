@@ -142,3 +142,6 @@ Data.js
 poetry.lock
 *.csv
 *.json
+*.txt
+
+configuration.py
