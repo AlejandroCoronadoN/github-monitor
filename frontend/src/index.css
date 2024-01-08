@@ -12,19 +12,11 @@ body {
 
   }
 
-  *,
-  ::before,
-  ::after {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-
 /* Default monitor size */
 .container {
-    width: 1440px;
+    width: 1600px;
     height: 900px;
     display: flex;
     flex-direction: row;
+    margin-top: 2%;
 }

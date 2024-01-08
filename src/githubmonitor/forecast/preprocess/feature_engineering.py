@@ -2,7 +2,8 @@
 import logging
 import os
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
+from typing import Optional, Tuple, Union
 
 import pandas as pd
 from forecast.utils.utils import (
@@ -108,12 +109,70 @@ def discard_uncompleted_windows(
     else:
         raise ValueError("Select a valid agg_level: D, M, W")
 
-    max_date = df_out[
+    max_date = df[
         date_column
     ].max()  # Set the max date as the last week of the 155 weeks window
     min_date = df[date_column].min() + discarted_observation
     df = df[(df[date_column] <= max_date) & (df[date_column] >= min_date)]
     return df
+
+
+def moving_average_variables(
+    df: pd.DataFrame,
+    date_column: str,
+    lag_list: Union[int, Tuple[int, ...]],
+    rolling_list: Union[int, Tuple[int, ...]],
+    aggregation_level: Optional[str] = "W",
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Apply moving average variables to a DataFrame.
+
+    Parameters:
+    - df (pd.DataFrame): Input DataFrame.
+    - date_column (str): Name of the date column.
+    - lag_list (Union[int, Tuple[int, ...]]): List of lag values.
+    - rolling_list (Union[int, Tuple[int, ...]]): List of rolling window sizes.
+    - aggregation_level (Optional[str]): Aggregation level for grouping data (default is "W" for week).
+
+    Returns:
+    - Tuple[pd.DataFrame, pd.DataFrame]: DataFrames with ewm and rolling window features.
+    """
+    df[date_column] = pd.to_datetime(df[date_column])
+    df = df.sort_values(["repo_name", date_column], ascending=False).reset_index()
+
+    # TODO: Check aggregation_level and apply appropriate grouping
+
+    # Apply ewm
+    df_window_ewm = interact_categorical_numerical(
+        df=df,
+        lag_col=date_column,
+        numerical_cols=["commit_count"],
+        categorical_cols=["repo_name"],
+        lag_list=lag_list,
+        rolling_list=rolling_list,
+        agg_funct="sum",
+        store_name=None,
+        rolling_function="ewm",
+        freq=aggregation_level,
+        parallel=False,
+    )
+
+    # Apply rolling mean
+    df_window_mean = interact_categorical_numerical(
+        df=df,
+        lag_col=date_column,
+        numerical_cols=["commit_count"],
+        categorical_cols=["repo_name"],
+        lag_list=lag_list,
+        rolling_list=rolling_list,
+        agg_funct="sum",
+        store_name=False,
+        rolling_function="rolling",
+        freq=aggregation_level,
+        parallel=False,
+        parent_process="feature_enginnering",
+    )
+
+    return df_window_ewm, df_window_mean
 
 
 if __name__ == "__main__":
@@ -130,38 +189,17 @@ if __name__ == "__main__":
     else:
         df = pd.read_csv("../data/preprocess/commit_series_expansion.csv")
 
-    df[date_column] = pd.to_datetime(df[date_column])
-    df = df.sort_values(["repo_name", date_column], ascending=False).reset_index()
-    # TODO: if agregation_level = W group data and then apply window functions
+    df["date"] = pd.to_datetime(df.date)
+    max_min_date = datetime.today()
+    for repo in df.repo_name.unique():
+        df_repo = df[df.repo_name == repo]
+        max_repo_date = df_repo.date.max()
+        if max_repo_date < max_min_date:
+            max_min_date = max_repo_date
+    df = df[df.date <= max_min_date]
 
-    # TODO: group by date and report information at a weekly level
-    df_window_ewm = interact_categorical_numerical(
-        df=df,
-        lag_col=date_column,
-        numerical_cols=["commit_count"],
-        categorical_cols=["repo_name"],
-        lag_list=lag_list,
-        rolling_list=rolling_list,
-        agg_funct="sum",
-        store_name=None,
-        rolling_function="ewm",
-        freq="W",  # W for week
-        parallel=True,
-    )
-
-    df_window_mean = interact_categorical_numerical(
-        df=df,
-        lag_col=date_column,
-        numerical_cols=["commit_count"],
-        categorical_cols=["repo_name"],
-        lag_list=lag_list,
-        rolling_list=rolling_list,
-        agg_funct="sum",
-        store_name=False,
-        rolling_function="rolling",
-        freq="W",  # W for week
-        parallel=True,
-        parent_process="feature_enginnering",
+    df_window_mean, df_window_ewm = moving_average_variables(
+        df, date_column, lag_list, rolling_list
     )
 
     df_out = df.merge(df_window_mean, on=[date_column, "repo_name"], how="inner")
@@ -177,5 +215,3 @@ if __name__ == "__main__":
         file_path = "../data/preprocess/featureengineering.csv"
     df_out = discard_uncompleted_windows(df_out, evaluation_window, date_column, "W")
     df_out.to_csv(file_path, index=False)
-    test_rolling_var = "sum_repo_name_on_commit_count_with_roll2_lag2_rolling"
-    featureengineering_test(df_out, test_rolling_var, feature="commit_count")

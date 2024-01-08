@@ -18,14 +18,14 @@ class StartupSettings(BaseSettings):
     class Config:  # noqa: D106
         import os
 
-        env_file = os.path.join(os.path.dirname(__file__), "dev.env")
+        env_file = os.path.join(os.path.dirname(__file__), ".env")
 
     app_name: str = "Github Monitor"
     log_level: str = "info"
-    openai_api_key: str = "XXXXXX"
+    openai_api_key: str = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
     max_message_history: int = 5
     temperature: float = 0.4
-    agent_model_name: str = "gpt-4"
+    agent_model_name: str = "chatgpt-3.5-turbo"
     version: str = "0.0.1"
     minimum_delay_ms: int = 5
     maximum_delay_ms: int = 10

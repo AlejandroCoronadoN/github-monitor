@@ -5,14 +5,45 @@ This module contains the forecast process of the application. by passing the his
 """
 
 import logging
+import os
+import time
+from datetime import timedelta
 
 import githubmonitor.api.schemas
+import joblib
+import pandas as pd
 from fastapi import APIRouter
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
+from githubmonitor.forecast.preprocess.feature_engineering import (
+    moving_average_variables,
+)
+from githubmonitor.forecast.process.forecast_ensemble import (
+    create_forecast_horizon,
+    create_month_dummy,
+    prepare_all_models,
+    set_cluster,
+    test_uniqueness_branch_date,
+    train_elasticnet_ensemble_model,
+)
+from githubmonitor.forecast.process.iterative_prediction import (
+    create_iterative_forecast,
+)
+
+relative_path = os.path.dirname(os.path.realpath(__file__)).replace(
+    "githubmonitor/api/routes/", ""
+)
+relative_path = relative_path.replace("githubmonitor/api/routes", "")
+logging.info(relative_path)
+
+model_path = os.path.join(
+    relative_path,
+    "githubmonitor/forecast/process/models/commit_count_randomforest.joblib",
+)
+MODEL = joblib.load(model_path)
 
 logging.basicConfig(level=logging.INFO)
 # Router basic config
-scan_router = APIRouter(
+repositories_router = APIRouter(
     prefix="/repositories",
     tags=[
         "repositories",
@@ -21,9 +52,9 @@ scan_router = APIRouter(
 )
 
 
-@scan_router.post("/get_forecast")
-async def scan_product(
-    message: githubmonitor.api.schemas.RepositorySchema
+@repositories_router.post("/get_forecast")
+async def get_forecast(
+    message: githubmonitor.api.schemas.commitHistorySchema
 ) -> StreamingResponse:
     """Process the repository historic information and creates a forecast using the last year of available data. After the user logs into the system, he will searches and select a repository. This action triggers this function via the start_session endopoint. repo_commit_history will be transformed into a pd.DataFrame and it will be passed as input for all the pretrainned models (RandomForest, Xgboost, LightGBM), located at the root/models directory.The predictions will be passed again as a json file that will feed the front-end and add the additional weekly obsertvations at the end of the plot.
 
@@ -36,14 +67,186 @@ async def scan_product(
     Returns:
         StreamingResponse: Forcast output passed as a Json object.
     """
-    repo_id = message.repo_id
-    session_id = message.session_id
-    repo_commit_hist = message.repo_commit_hist
-    forecast = create_forecast(session_id, repo_id, repo_commit_hist)
+    # Make predictions on the testing data
 
-    response = {"message": "A NEW FORECAST WAS CREATED", "forecast": forecast}
+    dates = message.dates
+    commit_history = message.commits
+    logging.info(f"DATES: \n, {dates}")
+    if (
+        len(dates) <= 60
+    ):  # Clusters were trainned with 60 weeks of data to include at least 1 year of information. This information is important to allow the
+        raise ValueError(
+            "Error: The repository needs at least 60 weeks of historic information to create a forecast"
+        )
+    # Create a DataFrame
+    df = pd.DataFrame({"date": dates, "commit_count": commit_history})
 
-    return response
+    # Optionally, convert the 'date' column to datetime format
+    df["date"] = pd.to_datetime(df["date"]).dt.normalize()
+    # Find the closest Monday for each date
+    df["date"] = df["date"] + pd.to_timedelta(
+        (6 - df["date"].dt.dayofweek) % 7, unit="D"
+    )
+
+    df["date"] = df.date.apply(lambda x: str(x)[:10])
+    df["date"] = pd.to_datetime(df.date)
+
+    df_out = df[["date", "commit_count"]]
+    n_lag_plot = 7  # Showing last 7 weeks
+    df_out = df_out[df_out.date >= df_out.date.max() - timedelta(days=7 * n_lag_plot)]
+    df_out = df_out.rename(
+        columns={"commit_count": "response_forecast", "date": "response_date"}
+    )
+
+    # Will be used at the end
+    df["repo_name"] = "githubapi"
+    # Feature Engineering processs
+    lag_list = [2, 4, 6, 10]
+    rolling_list = [2, 4, 6]
+
+    df_window_mean, df_window_ewm = moving_average_variables(
+        df, "date", lag_list, rolling_list
+    )
+
+    df_features = df.merge(df_window_mean, on=["date", "repo_name"], how="inner")
+    df_features = df_features.merge(
+        df_window_ewm, on=["date", "repo_name"], how="inner"
+    )
+    df_features = df_features.sort_values(["repo_name", "date"], ascending=True)
+
+    # ITERATIVE PREDICTION
+    evaluation_window = max(lag_list) + max(rolling_list) + 1
+    prediction_window = 12
+    forecast_start = df_features["date"].max()
+    min_date = forecast_start - timedelta(days=(evaluation_window * 7))
+    parallel = False
+
+    # Order is important and avoid making mistakes on the prediction
+    model_features = [
+        "sum_repo_name_on_commit_count_with_roll2_lag2_ewm",
+        "sum_repo_name_on_commit_count_with_roll4_lag2_ewm",
+        "sum_repo_name_on_commit_count_with_roll6_lag2_ewm",
+        "sum_repo_name_on_commit_count_with_roll2_lag4_ewm",
+        "sum_repo_name_on_commit_count_with_roll4_lag4_ewm",
+        "sum_repo_name_on_commit_count_with_roll6_lag4_ewm",
+        "sum_repo_name_on_commit_count_with_roll2_lag6_ewm",
+        "sum_repo_name_on_commit_count_with_roll4_lag6_ewm",
+        "sum_repo_name_on_commit_count_with_roll6_lag6_ewm",
+        "sum_repo_name_on_commit_count_with_roll2_lag10_ewm",
+        "sum_repo_name_on_commit_count_with_roll4_lag10_ewm",
+        "sum_repo_name_on_commit_count_with_roll6_lag10_ewm",
+        "sum_repo_name_on_commit_count_with_roll2_lag2_rolling",
+        "sum_repo_name_on_commit_count_with_roll4_lag2_rolling",
+        "sum_repo_name_on_commit_count_with_roll6_lag2_rolling",
+        "sum_repo_name_on_commit_count_with_roll2_lag4_rolling",
+        "sum_repo_name_on_commit_count_with_roll4_lag4_rolling",
+        "sum_repo_name_on_commit_count_with_roll6_lag4_rolling",
+        "sum_repo_name_on_commit_count_with_roll2_lag6_rolling",
+        "sum_repo_name_on_commit_count_with_roll4_lag6_rolling",
+        "sum_repo_name_on_commit_count_with_roll6_lag6_rolling",
+        "sum_repo_name_on_commit_count_with_roll2_lag10_rolling",
+        "sum_repo_name_on_commit_count_with_roll4_lag10_rolling",
+        "sum_repo_name_on_commit_count_with_roll6_lag10_rolling",
+    ]
+
+    for model in ["xgboost", "randomforest"]:
+        start_time = time.time()
+        df_iter = create_iterative_forecast(
+            df_features,
+            model=model,
+            forecast_start=forecast_start,
+            lag_list=lag_list,
+            rolling_list=rolling_list,
+            parallel=parallel,
+            evaluation_window=evaluation_window,
+            min_date=min_date,
+            production=True,
+            prediction_window=prediction_window,
+            model_features=model_features,
+        )
+
+        end_time = time.time()
+        elapsed_time = round(end_time - start_time)
+        logging.info(f" MODEL: {model} - TRAINNING TIME: {elapsed_time}")
+
+    # ENSEMBLE PREDICTION
+    retrain_models = False
+
+    # Start from the last day and starts making iterations over the future
+    prediction_start = forecast_start
+    min_date = prediction_start - timedelta(days=(evaluation_window * 7))
+
+    cut_date = df_iter.Date.max()
+    # df_forecast is loaded from the begining
+    df_predicted_s1, df_models = prepare_all_models(
+        retrain_models, cut_date=cut_date, production=True
+    )
+    df_forecast_month = create_month_dummy(
+        df_models, retrain_models=retrain_models, production=True
+    )
+    df_forecast_horizon = create_forecast_horizon(df_models.copy())
+    df_target = df_predicted_s1[["Repository", "Date", "Commit Real"]].copy()
+    df_target = (
+        df_target.groupby(["Repository", "Date"])["Commit Real"].first().reset_index()
+    )
+    predicted_labels = set_cluster(
+        df=df_features,
+        date_col="date",
+        index_cols=["repo_name"],
+        target="commit_count",
+    )  # Note that we are using the initial DF with all the information
+
+    n_cluster = 8
+    df_clusters = df_predicted_s1.copy()
+    cluster_cols = []
+    for i in range(n_cluster):
+        col = f"Cluster_{i}"
+        df_clusters[col] = 0  # Complete clusters accordingly
+        cluster_cols.append(col)
+    cluster = predicted_labels[0]
+
+    df_clusters[f"Cluster_{cluster}"] = 1
+    df_clusters["cluster"] = cluster
+    cluster_cols.append("cluster")
+    df_clusters = df_clusters.groupby(["Repository", "Date"])[cluster_cols].first()
+
+    df_lr = df_models.merge(df_clusters, on=["Repository", "Date"], how="left")
+    test_uniqueness_branch_date(df_models)
+    test_uniqueness_branch_date(df_lr)
+    test_uniqueness_branch_date(df_forecast_month)
+
+    df_model_input = df_lr.merge(
+        df_forecast_month, on=["Repository", "Date"], how="inner"
+    )
+    df_model_input = df_model_input.merge(
+        df_forecast_horizon, on=["Repository", "Date"], how="inner"
+    )
+
+    df_model_input = df_target.merge(
+        df_model_input, on=["Repository", "Date"], how="inner"
+    )
+
+    model, df_results = train_elasticnet_ensemble_model(
+        df_model_input,
+        target="Commit Real",
+        retrain_models=retrain_models,
+        load_model=True,
+        production=True,
+    )
+
+    df_results["model_family"] = "elasticnet"
+    df_results = df_results[["elasticnet", "Date"]]
+    df_results = df_results.rename(
+        columns={"elasticnet": "response_forecast", "Date": "response_date"}
+    )
+
+    df_out = pd.concat([df_out, df_results])
+
+    response = {
+        "dates": df_out["response_date"].values.tolist(),
+        "forecast": df_out["response_forecast"].values.tolist(),
+    }
+    return JSONResponse(response)
 
 
 async def create_forecast(

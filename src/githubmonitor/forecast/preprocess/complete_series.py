@@ -38,7 +38,7 @@ def expand_time_series(
     df_index: pd.DataFrame,
     df_dates_week: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Expansion is being done at a weekly level. If a repository only report commit in 3 weeks, this function will create 153 new entries with a commit_count equal to 0, representing all the week were the repository existed but no commit was made.
+    """Expansion is being done at a weekly level. If a repository only report commit in 3 weeks, this function will create 257 new entries with a commit_count equal to 0, representing all the week were the repository existed but no commit was made.
 
     Args:
         df (pd.DataFrame): Repository commit count at a weekly level (only reported weeks).
@@ -47,10 +47,10 @@ def expand_time_series(
         df_dates_week (pd.DataFrame): Complete series of weeks from start_date to end_date reported at a weekly level.
 
     Raises:
-        ValueError: Internal control that report information for a 3 years long evaluation period
+        ValueError: Internal control that report information for a 5 years long evaluation period
 
     Returns:
-        pd.DataFrame: DataFrame with 155 week datapoints for each repository. All repositories share the same dates.
+        pd.DataFrame: DataFrame with 260 week datapoints for each repository. All repositories share the same dates.
     """
     df_all = pd.DataFrame()
     for i in tqdm(range(len(df_index))):
@@ -62,10 +62,6 @@ def expand_time_series(
         df_expand = df_repo.merge(
             df_dates_week, on=["repo_name", date_column], how="outer"
         )
-        if len(df_expand["date"].unique()) != 155:
-            raise ValueError(
-                "More that 155 weeks were identified after the data expansion"
-            )
         if len(df_all) == 0:
             df_all = df_expand
         else:

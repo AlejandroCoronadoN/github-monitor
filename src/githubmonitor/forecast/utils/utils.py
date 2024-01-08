@@ -154,6 +154,7 @@ def _process_with_freq(arg_list: object):
         temp_df = temp_df.shift(1, freq=freq)
     else:
         temp_df = grouped_sum[numerical_cols + group_nodate].shift(lag, freq=freq)
+
     temp_df = temp_df.rename(columns=dict(zip(numerical_cols, new_colnames)))
     temp_df = temp_df.reset_index()
     grouped_sum_lag = temp_df.groupby(group_nodate)
@@ -289,22 +290,28 @@ def interact_categorical_numerical(
                         grouped_sum,
                     )
                 )
+
     if parallel:
         if parent_process == "feature_enginnering":
             pool = Pool(cpu_count() - 1)
         elif parent_process == "prediction":
             pool = Pool(6)  # Tune this parameter with htop and measure time
+        temp_dfs = pool.map(_process_with_freq, thread_params)
+        for each_df in temp_dfs:
+            t_set = t_set.merge(each_df, how="outer", on=categorical_cols)
+            pool.close()
+
     else:
-        pool = Pool(1)
-    temp_dfs = pool.map(_process_with_freq, thread_params)
-    for each_df in temp_dfs:
-        t_set = t_set.merge(each_df, how="outer", on=categorical_cols)
+        t_set = pd.DataFrame()
+        for i in range(len(thread_params)):
+            temp_df = _process_with_freq(thread_params[i])
+            if len(t_set) == 0:
+                t_set = temp_df
+            else:
+                t_set = t_set.merge(temp_df, how="outer", on=categorical_cols)
 
     if (lag_col in t_set.columns) & (lag_col not in categorical_cols):
         t_set.drop(lag_col, axis=1, inplace=True)
-
-    pool.close()
-
     return t_set
 
 
@@ -393,3 +400,82 @@ def preprocess_data(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
             selected_cols.append(col)
 
     return df[selected_cols]
+
+
+def weekly_group(
+    df: pd.DataFrame,
+    date_col: str,
+    index_cols: List[str],
+    sum_cols: List[str],
+    mean_cols: List[str],
+) -> pd.DataFrame:
+    """Perform weekly grouping of the DataFrame based on specified columns.
+
+    The function groups the DataFrame by the specified 'date_col' and 'index_cols',
+    calculating the sum and mean for the provided columns 'sum_cols' and 'mean_cols', respectively.
+    It also checks for consistency between the sum and mean values for validation purposes.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame.
+        date_col (str): Name of the column containing date information.
+        index_cols (List[str]): List of column names to be used as index for grouping.
+        sum_cols (List[str]): List of column names for which the sum will be calculated.
+        mean_cols (List[str]): List of column names for which the mean will be calculated.
+
+    Returns:
+        pd.DataFrame: DataFrame with weekly grouped data.
+
+    Raises:
+        ValueError: If there is inconsistency between the sum and mean values.
+
+    Example:
+        ```
+        df_weekly_grouped = weekly_group(df, 'Date', ['Repository'], ['Column1'], ['Column2'])
+        ```
+
+    Note:
+        Ensure that the 'date_col' and 'index_cols' are present in the DataFrame.
+    """
+    if len(sum_cols) > 0:
+        test_col = sum_cols[0]
+        total_test_1 = df[test_col].sum()
+    else:
+        test_col = mean_cols[0]
+        total_test_1 = df[test_col].mean()
+
+    merge_group = index_cols.copy()
+    merge_group.append(date_col)
+    df[date_col] = pd.to_datetime(df[date_col])
+    df[date_col] = df[date_col].apply(lambda x: convert_to_first_monday_of_week(x))
+    df_week_sum = df.groupby(merge_group)[sum_cols].sum().reset_index()
+    df_week_mean = df.groupby(merge_group)[mean_cols].mean().reset_index()
+
+    df_out = df_week_mean.merge(df_week_sum, on=merge_group, how="inner")
+
+    if len(sum_cols) > 0:
+        total_test_2 = df_out[test_col].sum()
+        if total_test_1 - total_test_2 > 0.01:
+            raise ValueError("Inconsistency between sum values.")
+    else:
+        total_test_2 = df_out[test_col].mean()
+        if np.abs(total_test_1 - total_test_2) / total_test_1 > 0.2:
+            raise ValueError("Inconsistency between mean values.")
+
+    df_out[date_col] = pd.to_datetime(df_out[date_col])
+    df_out = df_out.sort_values(index_cols + [date_col], ascending=True)
+    return df_out
+
+
+def convert_to_first_monday_of_week(input_date):
+    """Convert any date to the date linked to the first Monday of the same week.
+
+    Parameters:
+    input_date (str or datetime.date): The input date to convert.
+
+    Returns:
+    datetime.date: The date linked to the first Monday of the same week.
+    """
+    input_date = pd.to_datetime(input_date)
+    # Calculate the start of the week (Monday)
+    start_of_week = input_date - pd.DateOffset(days=input_date.weekday())
+    return start_of_week.date()

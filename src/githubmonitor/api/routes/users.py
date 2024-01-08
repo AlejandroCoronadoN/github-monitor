@@ -3,25 +3,23 @@
 import logging
 
 import githubmonitor.api.schemas
-import pandas as pd
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
 logging.basicConfig(level=logging.INFO)
-df_users = pd.read_csv("users.csv")
 
 # Router basic config
-transaction_router = APIRouter(
-    prefix="/sessions",
+users_router = APIRouter(
+    prefix="/users",
     tags=[
-        "sessions",
+        "users",
     ],
     responses={404: {"description": "User not found"}},
 )
 
 
-@transaction_router.post("/scan_user")
+@users_router.post("/scan_user")
 async def scan_user(
     message: githubmonitor.api.schemas.UserSchema,
 ) -> StreamingResponse:
