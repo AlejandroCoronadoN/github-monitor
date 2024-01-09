@@ -1,24 +1,4 @@
 repos:
-- repo: https://github.com/charliermarsh/ruff-pre-commit
-  rev: v0.1.4
-  hooks:
-    - id: ruff
-      name: "Ruff linting \U0001F436"
-      args:
-        - --fix
-        - --exit-non-zero-on-fix
-    - id: ruff-format
-      name: "Ruff formatting \U0001F436"
-
-- repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.5.0
-  hooks:
-    - id: trailing-whitespace
-      name: "removing trailing whitespace \U0001F9F9"
-    - id: check-yaml
-      name: "Validating YAML \U0001F360"
-    - id: check-added-large-files
-      name: "Checking for large files \U0001F69A"
 
 - repo: https://github.com/python-poetry/poetry
   rev: 1.7.0

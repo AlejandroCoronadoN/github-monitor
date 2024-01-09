@@ -11,23 +11,64 @@ conda activate github-monitor
 
 After installing conda we can start by installing poetry in the new environment. Poetry will handle all the libraries dependencies and install everything we need to run the project from the backend. To use poestry first we need to move to be a the root of the directory where the pyproject.toml file is located and run the following commands
 
+MacOS
 ```
 conda install -c conda-forge poetry
 poetry install
+sudo apt install uvicorn
+
 ```
-After all the libraries are installed we can go back and setup the of the frontend directory at ./frontend. Here you will see the package.json file which contains all the libraries that we need to run the project. Use npm to install them and the build the project to be used by the backend
+
+After all the libraries are installed we can go back and setup the of the frontend directory at ./frontend. Here you will see the package.json file which contains all the libraries that we need to run the project. Use npm to install them and the build the project to be used by the backend.
+
+Install nvm to use the correct version of npm for this project (npm 18.19)
+```
+sudo apt-get install curl
+curl https://raw.githubusercontent.com/creationix/nvm/master/install.sh | bash
+source ~/.bashrc
+
+nvm install node
+nvm install 18
+```
+Move to the github-repository/frontend folder and execute the following commands to install all node modules and create a compiled version of the frontend.
 ```
 npm install
 npm run build
 ```
 
-Go back to the root directory and navigate to the source folder of the fastAPI ./src application. Now that all the python dependencies are installed we can start the project and test the application with the following command.
+Now the application is ready to be tested but you will need to add your own github and ChatGPT credentials to start using all the features of this project. Firt add you own Github credentials by replacing this line inside the .env file
+```
+VITE_GITHUB_API_TOKEN='ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+REACT_APP_API_URL = 'http://localhost:8000'
+```
+Now modify the configuration.py file and replace the chatgpt_api_credentials by replacing this section of the code
+```
+
+    class Config:  # noqa: D106
+        import os
+
+        env_file = os.path.join(os.path.dirname(__file__), ".env")
+
+    app_name: str = "Github Monitor"
+    log_level: str = "info"
+    openai_api_key: str = "sk-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" #<-This line
+    max_message_history: int = 5
+    temperature: float = 0.4
+    agent_model_name: str = "chatgpt-3.5-turbo"
+    version: str = "0.0.1"
+    minimum_delay_ms: int = 5
+    maximum_delay_ms: int = 10
+
+```
+
+Go back to the root directory and navigate to the source folder of the fastAPI ./src application. Now that all the python dependencies are installed we can start the project and test the application with the following command. The application will start at port 800 and you can use all the features now.
 ```
 uvicorn githubmonitor.main:app --reload --host 0.0.0.0
 ```
 
-Go to the application at localhost http://localhost:8000/
+Go to the application at localhost http://localhost:8000/ and start searching new repositories.
 
+Note: If the project is being runned directly from the repository, you will need to create all the models and go trough the Machine Learning trainning pipeline to enable the forecast features and allow the application to work. The main.ipynb Jupyter notebook to complete this ML trainning process.
 
 
 
@@ -40,8 +81,21 @@ The following diagram represents the application workflow. On the left side we c
 
 ![Image Alt Text](./images/Forecast%20Architecture.png)
 
+# Demo
+The following media shoiwcase the three different ML features of this project and the Reactt UI:
+* **React ChartJS: **: Designed to store user_id, name and personal information.
+* **Forecast: **: Ensemble model for RandomForest, Xgboost and elasticnet. TimeSeries cluster predictive enhancement.
+* **Sentiment Analysis **: Reviews the last GitHub issue and returns a sentiment analysis of the issue. The issue is classified and depending on the assigned category, a representative emoji is provided.
+* **NLP Description **: Use the LangChain LLM framework to create bfrief descriptions for the github repositories.
 
-# Frontend
+![Image Alt Text](./images/demo.gif)
+
+# Development process
+For the development process I created two branches in the github repository. First I solved most of the frontend logic and a basic rendering that allowed me to test the backend and slowly integrating the application. For the backend I cretaed a new branch and started working with my BigQuery information. All the model tunning process was made in individual scripts that allowed me to solve individual tasks and then validate my information before going to the next step. After reviewing and evalauting my results I was able to cretae a production version of the ML pipeline that used the models generated in the tunning process. The FastAPI get_forecast endpoint summarizes all the ML process by rehusing the functions of the feature_engineering, iterative_prediction and forecast_ensemble scripts. I was able to test all the endpoint trough the FastAPI docs extension (http://localhost:8000/docs) before integrating the application. On an intermediate step I created a new branch and connected the front end and backend. In this stage of the development process I had to connect the frontend functions (located at utils.js) to the correct FastAPI endpoint. I started with the get_forecast function and proceed with the langchain route endpooints. Finally, I worked refactoring my code by providing more documentation and adding more dtails to the frot end to replicate the expected behaviour.
+
+![Image Alt Text](./images/gitprocess.png)
+
+
 # Backend
 
 ## Backend - FastAPI

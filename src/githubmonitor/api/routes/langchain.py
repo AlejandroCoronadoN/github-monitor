@@ -44,7 +44,7 @@ llm_sentiment_prompt = """Use this tool when a new query is passed that fulfills
         1 The query must have the following structure {repository_issue_title} | {repository_issue_description}. Where repository_issue_title is the title of a Git issue and repository_issue_description is the description (more details) about that same issue.
         2. The text should match a GitHub repository issue format. If you identify content that doesn't fall in this category or that cannot be further analyzed, return with a string "Unprocessable Issue
 
-        The response from this Tool can only be one of: fatal, important conflicts, noProblems, perfect.
+        The response from this Tool can only be one of: fatal, important conflicts, noproblems, perfect.
 
         These responses categorize the importance of the issue. Use your criteria to allocate the issue in one and only one of these categories. Your response should be a single-word response, for example, fatal. The output is the string single word alone, no formatting, no breaks or spaces -> "fatal".
         """
@@ -123,7 +123,7 @@ async def interact_llm(
 
     # Make the OpenAI API call using openai.Completion
     response = openai.Completion.create(
-        model="text-davinci-003",  # Use the correct model name
+        model="gpt-3.5-turbo-instruct",  # Use the correct model name
         prompt=input_data,
         max_tokens=150,
     )
@@ -151,7 +151,7 @@ async def nlp_description(
 
     # Make the OpenAI API call using openai.Completion
     response = openai.Completion.create(
-        model="text-davinci-003",  # Use the correct model name
+        model="gpt-3.5-turbo-instruct",  # Use the correct model name
         prompt=input_data,
         max_tokens=150,
     )
@@ -181,7 +181,7 @@ async def issue_sentiment(
 
     # Make the OpenAI API call using openai.Completion
     response = openai.Completion.create(
-        model="text-davinci-003",  # Use the correct model name
+        model="gpt-3.5-turbo-instruct",  # Use the correct model name
         prompt=input_data,
         max_tokens=150,
     )
@@ -195,9 +195,10 @@ async def issue_sentiment(
         .replace(".", "")
         .lower()
     )
-    if output not in ["fatal", "important", "conflicts", "noProblems", "perfect"]:
+
+    if output not in ["fatal", "important", "conflicts", "noproblems", "perfect"]:
         # Set default
-        output = "noProblems"
+        output = "noproblems"
 
     response = {"category": output}
 
