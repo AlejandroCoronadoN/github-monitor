@@ -6,11 +6,6 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple, Union
 
 import pandas as pd
-from forecast.utils.utils import (
-    generate_date_range,
-    get_testing_params,
-    interact_categorical_numerical,
-)
 from tqdm import tqdm
 
 # TODO: Ruff is forcing us to define the following instructions after the import. For testing this script separately rearange the order of these lines of code.
@@ -19,6 +14,12 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 src_dir = os.path.abspath(os.path.join(current_dir, "../.."))
 sys.path.append(src_dir)
 logging.basicConfig(level=logging.INFO)
+
+from forecast.utils.utils import (
+    generate_date_range,
+    get_testing_params,
+    interact_categorical_numerical,
+)
 
 
 def featureengineering_test(

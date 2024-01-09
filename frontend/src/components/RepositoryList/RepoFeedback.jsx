@@ -5,6 +5,10 @@ const RepoFeddback = ({
     sentimentCategory,
     description }) => {
 
+    useEffect(() => {
+
+
+    }, [sentimentCategory]);
   const getEmoji = (intensity) => {
     switch (intensity) {
       case 'fatal':
