@@ -1,7 +1,23 @@
-### github-monitor
+# Metalab github-monitor coding challenge
 This is the github-monitor application created for the metalab coding challenge.
 
-### Getting started
+
+
+
+## Getting started - Execution
+
+### Docker
+
+The eassiest way to start the project is runnig the docker file located at the root directory. Use this file with docker compose and the application will start after all the libraries have been installed.
+
+```
+docker-compose up build
+```
+For WSl configuration be sure to unlock the WSL integration from the docker application inside settins->General->Resources->WSL integration.
+
+
+## ## Getting started - Development
+
 To start the project you will need to run the following commands.
 For the backend start by creating a new environemnt for the project. I'm using conda with pyhton=3.10 but you can also use pyenv. After installing pyenv or conda install poetry to create the environemnt for the project using the pyproject.toml file. Starting from the root of the project run the following commands.
 ```
@@ -9,15 +25,27 @@ conda create -n github-monitor python=3.10
 conda activate github-monitor
 ```
 
-After installing conda we can start by installing poetry in the new environment. Poetry will handle all the libraries dependencies and install everything we need to run the project from the backend. To use poestry first we need to move to be a the root of the directory where the pyproject.toml file is located and run the following commands
+After installing conda we can start by installing poetry in the new environment. Poetry will handle all the libraries dependencies and install everything we need to run the project from the backend. To use poestry first we need to move to be a the root of the directory where the pyproject.toml file is located and run the following commands. It's very important to use python 3.11 to run all the dependencies for this project.
 
-MacOS
+### MacOS
 ```
+conda create --name githubmonitor python=3.11
 conda install -c conda-forge poetry
 poetry install
 sudo apt install uvicorn
 
 ```
+
+### Development Setup - Ubuntu
+```
+
+conda create --name githubmonitor python=3.11
+poetry install
+sudo apt install uvicorn
+
+```
+
+
 
 After all the libraries are installed we can go back and setup the of the frontend directory at ./frontend. Here you will see the package.json file which contains all the libraries that we need to run the project. Use npm to install them and the build the project to be used by the backend.
 
