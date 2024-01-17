@@ -17,7 +17,7 @@ import pandas as pd
 from forecast.utils.utils import (
     interact_categorical_numerical,
     perform_standardization,
-    preprocess_data,
+    prepare_data,
 )
 from tqdm import tqdm
 
@@ -636,7 +636,7 @@ if __name__ == "__main__":
         forecast_start = cut_date
         min_date = forecast_start - timedelta(days=(53 * 7))
 
-    for model in ["xgboost", "randomforest"]:
+    for model in ["xgboost", "randomforest", "lgbm"]:
         start_time = time.time()
         if TEST:
             file_path = "../data/preprocess/featureengineering_test.csv"
@@ -646,7 +646,7 @@ if __name__ == "__main__":
         df = pd.read_csv(file_path)
         df = df[~df["commit_count"].isna()]
         # Data Preprocessing
-        df = preprocess_data(df, "date")  # 30 days
+        df = prepare_data(df, "date")  # 30 days
         df = pd.read_csv(file_path)
         df_predicted_all = create_iterative_forecast(
             df,

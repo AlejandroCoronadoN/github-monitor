@@ -10,6 +10,7 @@ import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import lightgbm as lgb
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import (
@@ -33,7 +34,7 @@ logging.basicConfig(level=logging.INFO)
 from forecast.utils.utils import (
     current_date_formated,
     perform_standardization,
-    preprocess_data,
+    prepare_data,
 )
 
 def split_data(
@@ -80,7 +81,10 @@ def hyperparameter_optimization(
     cut_date,
     target="commit_count",
     subfix: str = None,
-    run_from_main = False
+    date_column = "date",
+    xgboost=True,
+    lgbm=True,
+    randomforest=True,
 ):
     """Iterates over the train set to make sequential predictions. Train models using a set of hyperparamters and returns the best combination of hyperparamters trough the scikit larn GridSearch library. Train data for each iteration is selected using the TimeSeries split that sequentially selects data for the next prediction.
 
@@ -116,31 +120,28 @@ def hyperparameter_optimization(
     X_train = training_data[features]
     y_train = training_data[target]
     # XGBOOST
-    if run_from_main:
-        model_filename = f"./process/models/{target}_xgboost.joblib"
-    else:
-        model_filename = f"./models/{target}_xgboost.joblib"
+    model_filename = f"./models/{target}_xgboost.joblib"
     # Save the best model to a file
-    grid_search_xgboost = train_xgboost_model(X_train, y_train, prediction_window)
-    best_estimator = grid_search_xgboost.best_estimator_
-    best_params = grid_search_xgboost.best_params_
-    # Print the best hyperparameters
-    logging.info("\tbest_params", best_params)
-    joblib.dump(best_estimator, model_filename)
-    prediction_xgboost = grid_search_xgboost.predict(X_test)
-    evaluate_model(y_test, prediction_xgboost)
-    save_results(
-        prediction_xgboost,
-        testing_data,
-        date_column = date_column,
-        model_filename=model_filename,
-        model="xgboost",
-        subfix=subfix,
-    )
+    if xgboost:
+        grid_search_xgboost = train_xgboost_model(X_train, y_train, prediction_window)
+        best_estimator = grid_search_xgboost.best_estimator_
+        best_params = grid_search_xgboost.best_params_
+        # Print the best hyperparameters
+        logging.info("\tbest_params", best_params)
+        joblib.dump(best_estimator, model_filename)
+        prediction_xgboost = grid_search_xgboost.predict(X_test)
+        evaluate_model(y_test, prediction_xgboost)
+        save_results(
+            prediction_xgboost,
+            testing_data,
+            date_column = date_column,
+            model_filename=model_filename,
+            model="xgboost",
+            subfix=subfix,
+        )
 
-    if False:  # TODO: activate when deploying on EC2
-        model_filename = f"./models/{target}_lgbm.joblib"
-
+    model_filename = f"./models/{target}_lgbm.joblib"
+    if lgbm:
         grid_search_lgbm = train_lgbm_model(X_train, y_train)
         best_estimator = grid_search_lgbm.best_estimator_
         best_params = grid_search_lgbm.best_params_
@@ -150,27 +151,32 @@ def hyperparameter_optimization(
         prediction_lgbm = grid_search_lgbm.predict(X_test)
         evaluate_model(y_test, prediction_lgbm)
         save_results(
-            prediction_lgbm, testing_data, model_filename, model="lgbm", subfix=subfix
+            prediction_lgbm, 
+            testing_data, 
+            model_filename, 
+            model="lgbm", 
+            subfix=subfix, 
+            date_column=date_column
         )
+    if randomforest:
+        # RANDOM_FOREST:
+        model_filename = f"./models/{target}_randomforest.joblib"
+        grid_search_rf = train_randomforest_model(X_train, y_train)
+        best_estimator = grid_search_rf.best_estimator_
+        best_params = grid_search_rf.best_params_
 
-    # RANDOM_FOREST:
-    model_filename = f"./models/{target}_randomforest.joblib"
-    grid_search_rf = train_randomforest_model(X_train, y_train)
-    best_estimator = grid_search_rf.best_estimator_
-    best_params = grid_search_rf.best_params_
-
-    # Save the best model to a file
-    joblib.dump(best_estimator, model_filename)
-    prediction_randomf = grid_search_rf.predict(X_test)
-    evaluate_model(y_test, prediction_randomf)
-    save_results(
-        prediction_randomf,
-        testing_data,
-        model_filename,
-        model="randomforest",
-        subfix=subfix,
-        date_column="date"
-    )
+        # Save the best model to a file
+        joblib.dump(best_estimator, model_filename)
+        prediction_randomf = grid_search_rf.predict(X_test)
+        evaluate_model(y_test, prediction_randomf)
+        save_results(
+            prediction_randomf,
+            testing_data,
+            model_filename,
+            model="randomforest",
+            subfix=subfix,
+            date_column="date"
+        )
 
 
 def save_results(
@@ -180,6 +186,7 @@ def save_results(
     date_column:str,
     model: str,
     subfix: str = None,
+    save_perfromance =True
 ):
     """Save predicted values over the trainning set, this information is not used in the following steps but it can be used to evaluate each model independently.
 
@@ -210,7 +217,7 @@ def save_results(
     mape = np.mean(df_M["pct_abs_error"])
     df_M["MAPE"] = mape
 
-    if SAVE_MODEL_PERFORMANCE:
+    if save_perfromance:
         save_path = f"../data/process/{model}_commit_count_{subfix}"
         df.to_csv(save_path + "_W.csv", index=False)
         df_M.to_csv(save_path + "_M.csv", index=False)
@@ -228,10 +235,15 @@ def train_xgboost_model(X_train, y_train, n_splits=4, test_size=100):
     """
     model = XGBRegressor()
     parameters = {
-        "max_depth": [6, 9],
-        "learning_rate": [0.01, 0.03],
-        "n_estimators": [80, 100, 150],
-        "colsample_bytree": [0.2, 0.3],
+        'max_depth': [3, 6, 9],
+        'learning_rate': [0.01, 0.03, 0.1],
+        'n_estimators': [50, 80, 100, 150, 200],
+        'colsample_bytree': [0.2, 0.3, 0.5, 0.8],
+        'subsample': [0.8, 0.9, 1.0],
+        'gamma': [0, 0.1, 0.2, 0.3],
+        'min_child_weight': [1, 3, 5],
+        'reg_alpha': [0, 0.1, 0.5, 1],
+        'reg_lambda': [0, 0.1, 1, 10],
     }
     cv_split = TimeSeriesSplit(n_splits=n_splits, test_size=test_size)
     grid_search = GridSearchCV(estimator=model, cv=cv_split, param_grid=parameters)
@@ -251,7 +263,7 @@ def train_lgbm_model(X_train, y_train, n_splits=4, test_size=100):
     Returns:
     grid_search (GridSearchCV): Trained model with the best hyperparameters.
     """
-    model = "Not supported"  # lgb.LGBMRegressor()
+    model = lgb.LGBMRegressor()
     parameters = {
         "max_depth": [6, 10],
         "num_leaves": [20, 25],
@@ -288,8 +300,8 @@ def train_randomforest_model(X_train, y_train, n_splits=4, test_size=100):
     """
     model = RandomForestRegressor()
     parameters = {
-        "n_estimators": [50, 100, 150],
-        "max_depth": [None, 10, 20],
+        "n_estimators": [50, 100, 150, 200],
+        "max_depth": [ 10, 20, 40],
         "min_samples_split": [2, 5],
         "min_samples_leaf": [1, 2, 4],
         "max_features": ["auto", "sqrt"],
@@ -388,7 +400,7 @@ if __name__ == "__main__":
     df = df[~df["commit_count"].isna()]
 
     # Data Preprocessing
-    df = preprocess_data(df, date_column)  # 30 days
+    df = prepare_data(df, date_column)  # 30 days
     hyperparameter_optimization(
         df,
         subfix="",

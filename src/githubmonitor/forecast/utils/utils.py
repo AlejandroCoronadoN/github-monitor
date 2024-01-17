@@ -378,7 +378,7 @@ def current_date_formated() -> str:
 
 
 # Data Preprocessing Functions
-def preprocess_data(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
+def prepare_data(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
     """Additional control to pass only variables available in hyperparamter optimization and iterative prediction scripts.
 
     Args:

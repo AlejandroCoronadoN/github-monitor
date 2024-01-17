@@ -146,7 +146,6 @@ if __name__ == "__main__":
 
     testing_sample = df_bounded.repo_name.unique()[:150]
     df_testing = df_bounded[df_bounded.repo_name.isin(testing_sample)]
-    logging.info("\n-Dates:")
     logging.info("Max commits per day: ", df_testing.commit_count.max())
     logging.info("Max date: ", df_testing.date.max())
     logging.info("Min date: ", df_testing.date.min())
