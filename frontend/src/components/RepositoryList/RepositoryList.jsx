@@ -1,13 +1,13 @@
-import { searchRepositories, weeklyCommits } from '../../utils';
-import React, { useState, useEffect } from 'react';
-import { Search } from 'react-feather';
+import { searchRepositories, weeklyCommits } from "../../utils";
+import React, { useState, useEffect } from "react";
+import { Search } from "react-feather";
 import "bootstrap/dist/css/bootstrap.min.css";
-import './RepositoryList.css';
+import "./RepositoryList.css";
 import { getRepoInfo, getRepoForecast } from "../../utils";
-import ItemDetails from './ItemIterator/ItemDetails';
-import SelectionDetails from './ItemIterator/SelectionDetails';
-import repoSuggestions from './repositorySearch.json';
-import RepoFeddback from './RepoFeedback';
+import ItemDetails from "./ItemIterator/ItemDetails";
+import SelectionDetails from "./ItemIterator/SelectionDetails";
+//import repoSuggestions from "./repositorySearch.json";
+import RepoFeddback from "./RepoFeedback";
 
 /**
  * RepositoryList component displays a list of GitHub repositories with search functionality.
@@ -26,7 +26,7 @@ const RepositoryList = ({
   plotsSeries,
   setHoverIndex,
 }) => {
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [chartRepo, setChartRepo] = useState({});
   const [colorIndex, setColorIndex] = useState(0);
@@ -34,23 +34,21 @@ const RepositoryList = ({
   const [requestTimeOut, setrequestTimeOut] = useState(false);
   const [startTimeOut, setStartTimeOut] = useState(false);
 
-    /**
-     * State hook to manage description for the Loading component
-     *
-     * @type {string} Index of the hovered repository.
-     */
-    const [description, setDescription] = useState("");
+  /**
+   * State hook to manage description for the Loading component
+   *
+   * @type {string} Index of the hovered repository.
+   */
+  const [description, setDescription] = useState("");
 
-    /**
-     * State hook to manage sentimentAnalysis category and insert Emoji
-     *
-     * @type {string} Index of the hovered repository.
-     */
-    const [sentimentCategory, setSentimentCategory] = useState("");
+  /**
+   * State hook to manage sentimentAnalysis category and insert Emoji
+   *
+   * @type {string} Index of the hovered repository.
+   */
+  const [sentimentCategory, setSentimentCategory] = useState("");
 
-
-
-  const colors = ['#4CCA8D', '#71B7F8', '#D65C5C'];
+  const colors = ["#4CCA8D", "#71B7F8", "#D65C5C"];
   const localTest = false;
   let timeoutId;
 
@@ -133,20 +131,23 @@ const RepositoryList = ({
 
   const fetchPlotsSeries = async (item) => {
     try {
-        setLoading(true); // Set loading to true before starting the fetch
-      const infoResponse = await getRepoInfo(item.author, item.repository)
+      setLoading(true); // Set loading to true before starting the fetch
+      const infoResponse = await getRepoInfo(item.author, item.repository);
 
-      setDescription(infoResponse.llmDescription)
-      setSentimentCategory(infoResponse.sentimentCategory)
+      setDescription(infoResponse.llmDescription);
+      setSentimentCategory(infoResponse.sentimentCategory);
       setLoading(true); // Set loading to true before starting the fetch
 
-      const response = await getRepoForecast(item.author, item.repository)
+      const response = await getRepoForecast(item.author, item.repository);
 
       setLoading(false); // Set loading to false after the fetch is complete
       return response;
     } catch (error) {
       setLoading(false); // Set loading to false if an error occurs
-      console.error(`Error fetching commits for ${item.author}/${item.repository}:`, error.message);
+      console.error(
+        `Error fetching commits for ${item.author}/${item.repository}:`,
+        error.message,
+      );
       throw error;
     }
   };
@@ -159,7 +160,8 @@ const RepositoryList = ({
   const preHandleChange = (event) => {
     const currentTime = new Date();
     if (startTimeOut) {
-      const timeDifferenceInMilliseconds = requestTimeOut.getTime() - currentTime.getTime();
+      const timeDifferenceInMilliseconds =
+        requestTimeOut.getTime() - currentTime.getTime();
       const diff = timeDifferenceInMilliseconds / 1000;
       if (diff > 1) {
         handleChange(event);
@@ -189,7 +191,8 @@ const RepositoryList = ({
       let results = [];
 
       if (test) {
-        results = repoSuggestions;
+        //results = repoSuggestions;
+        results = [];
       } else {
         results = await searchRepositories(inputValue);
       }
@@ -210,24 +213,27 @@ const RepositoryList = ({
     setSelectedRepositories(newSelectedRepos);
     let newCommits = await fetchPlotsSeries(item);
 
-
-
     // Check if plotsSeries already has 3 elements
     if (plotsSeries.length === 3) {
-        // Remove the first element
-        let updatedPlotsSeries = plotsSeries.slice(1);
-        // Update the ids for the remaining elements
-        updatedPlotsSeries = updatedPlotsSeries.map((elem) => ({ ...elem, id: elem.id - 1 }));
-        // Add the new element with id 2
-        updatedPlotsSeries.push({ ...newCommits, id: 2 });
+      // Remove the first element
+      let updatedPlotsSeries = plotsSeries.slice(1);
+      // Update the ids for the remaining elements
+      updatedPlotsSeries = updatedPlotsSeries.map((elem) => ({
+        ...elem,
+        id: elem.id - 1,
+      }));
+      // Add the new element with id 2
+      updatedPlotsSeries.push({ ...newCommits, id: 2 });
 
-        setPlotsSeries(updatedPlotsSeries);
+      setPlotsSeries(updatedPlotsSeries);
     } else {
-        // Add the new element with the next id
-        let newPlotsSeries = [...plotsSeries, { ...newCommits, id: plotsSeries.length }];
-        setPlotsSeries(newPlotsSeries);
+      // Add the new element with the next id
+      let newPlotsSeries = [
+        ...plotsSeries,
+        { ...newCommits, id: plotsSeries.length },
+      ];
+      setPlotsSeries(newPlotsSeries);
     }
-
   };
 
   /**
@@ -241,21 +247,19 @@ const RepositoryList = ({
 
   return (
     <div className="repository-list-container">
-        <div className="item-list-header">
-            <input className="item-list-header-input" onChange={handleChange} />
-            <div className="item-list-icon">
-                <Search size={22.5} style={{ display: 'block' }} />
-            </div>
-
+      <div className="item-list-header">
+        <input className="item-list-header-input" onChange={handleChange} />
+        <div className="item-list-icon">
+          <Search size={22.5} style={{ display: "block" }} />
         </div>
-
+      </div>
 
       {loading && (
         <div className="loading-alert">
           <div className="loading-message">
             <RepoFeddback
-                description ={description}
-                sentimentCategory = {sentimentCategory}
+              description={description}
+              sentimentCategory={sentimentCategory}
             />
           </div>
         </div>
@@ -280,9 +284,11 @@ const RepositoryList = ({
       ) : (
         <div className="state-message">
           <div className="search-icon">
-            <Search size={49} style={{ display: 'block' }} />
+            <Search size={49} style={{ display: "block" }} />
           </div>
-          <span className='state-text'>Search for a Github repository to populate the graph</span>
+          <span className="state-text">
+            Search for a Github repository to populate the graph
+          </span>
         </div>
       )}
 
@@ -295,7 +301,7 @@ const RepositoryList = ({
               handleSelectionClicked={handleSelectionClicked}
               selectedColor={colors[id]}
               setPlotsSeries={setPlotsSeries}
-              plotsSeries = {plotsSeries}
+              plotsSeries={plotsSeries}
               setHoverIndex={setHoverIndex}
             />
           </div>

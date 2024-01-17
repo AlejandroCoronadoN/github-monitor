@@ -1,0 +1,25 @@
+version: '3.3'
+
+services:
+  # Python 3.11 service
+  python:
+    image: python:3.11-buster
+    volumes:
+      - ./backend:/app
+    command: sh -c 'apt-get update && apt-get install -y software-properties-common && add-apt-repository ppa:deadsnakes/ppa && apt-get update && apt-get install -y python3.11 python3.11-dev curl && curl -sSL https://install.python-poetry.org | python3.11 - && echo "export PATH=\"/root/.local/bin:\$PATH\"" >> ~/.bashrc && . ~/.bashrc && cd /app && poetry install && uvicorn githubmonitor.main:app --reload --host 0.0.0.0'
+
+  # Node 18 service for frontend
+  node:
+    image: node:18
+    volumes:
+      - ./frontend:/app/frontend
+    working_dir: /app/frontend
+    command: >
+      sh -c 'apt-get update && apt-get install -y npm && npm install && npm run build'
+
+  # FastAPI (backend) service
+  fastapi:
+    image: python:3.11-buster
+    volumes:
+      - ./backend:/app
+    command: sh -c 'apt-get update && apt-get install -y software-properties-common && add-apt-repository ppa:deadsnakes/ppa && apt-get update && apt-get install -y python3.11 python3.11-dev curl && curl -sSL https://install.python-poetry.org | python3.11 - && echo "export PATH=\"/root/.local/bin:\$PATH\"" >> ~/.bashrc && . ~/.bashrc && cd /app && poetry install && uvicorn githubmonitor.main:app --reload --host 0.0.0.0'

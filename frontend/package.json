@@ -16,7 +16,8 @@
     "react-autosuggest": "^10.1.0",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.2.0",
-    "react-feather": "^2.0.10"
+    "react-feather": "^2.0.10",
+    "chart.js": "^3.7.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

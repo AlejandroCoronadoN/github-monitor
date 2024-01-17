@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import Plot from './components/Plot/Plot';
 import RepositoryList from './components/RepositoryList/RepositoryList';
-import jsonData from './data.json'; // Adjust the path as needed
 
 /**
  * Main application component.
