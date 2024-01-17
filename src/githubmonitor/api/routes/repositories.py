@@ -149,7 +149,7 @@ async def get_forecast(
         "sum_repo_name_on_commit_count_with_roll6_lag10_rolling",
     ]
 
-    for model in ["xgboost", "randomforest"]:
+    for model in ["xgboost", "randomforest", "lgbm"]:
         start_time = time.time()
         df_iter = create_iterative_forecast(
             df_features,

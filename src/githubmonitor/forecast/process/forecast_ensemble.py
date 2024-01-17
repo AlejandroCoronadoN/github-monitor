@@ -10,8 +10,6 @@ import joblib
 import numpy as np
 import pandas as pd
 
-# TODO: Ruff is forcing us to define the following instructions after the import. For testing this script separately rearange the order of these lines of code.
-from forecast.utils.utils import convert_to_first_monday_of_week
 from sklearn.linear_model import ElasticNet
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -23,6 +21,9 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 src_dir = os.path.abspath(os.path.join(current_dir, "../.."))
 sys.path.append(src_dir)
 logging.basicConfig(level=logging.INFO)
+
+# TODO: Ruff is forcing us to define the following instructions after the import. For testing this script separately rearange the order of these lines of code.
+from forecast.utils.utils import convert_to_first_monday_of_week
 
 
 def prepare_all_models(
@@ -46,7 +47,7 @@ def prepare_all_models(
     """
     df_forecast_prepared_all = pd.DataFrame()
 
-    for model in tqdm(["randomforest", "xgboost"]):
+    for model in tqdm(["randomforest", "xgboost","lgbm"]):
         if production:
             path_original = f"githubmonitor/forecast/data/process/predictions_{model}_production.csv"
         else:
@@ -445,8 +446,6 @@ def set_cluster(
 def cluster_indicator(
     df: pd.DataFrame,
     predicted_labels: np.ndarray,
-    n_cluster: int,
-    retrain_models: bool,
     index_col: str,
 ) -> pd.DataFrame:
     """Creates a dummy variable for each of the clusters.
@@ -679,4 +678,5 @@ if __name__ == "__main__":
         [df_forecast, df_results], ignore_index=True
     )  # Check columns
 
-    df_forecast.to_csv("final_predictions.csv", index=False)
+    path_out = f"../data/process/final_predictions.csv"
+    df_forecast.to_csv(path_out, index=False)

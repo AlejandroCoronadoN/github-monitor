@@ -1,4 +1,3 @@
-import './App.css';
 import React, { useState } from 'react';
 import Plot from './components/Plot/Plot';
 import RepositoryList from './components/RepositoryList/RepositoryList';
