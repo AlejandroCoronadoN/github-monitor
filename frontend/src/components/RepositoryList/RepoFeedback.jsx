@@ -1,28 +1,22 @@
-import React, {useEffect} from 'react';
-import { fetchLastIssue } from '../../utils';
+import React, { useEffect } from "react";
+//import { fetchLastIssue } from '../../utils';
 
-const RepoFeddback = ({
-    sentimentCategory,
-    description }) => {
-
-    useEffect(() => {
-
-
-    }, [sentimentCategory]);
+const RepoFeddback = ({ sentimentCategory, description }) => {
+  useEffect(() => {}, [sentimentCategory]);
   const getEmoji = (intensity) => {
     switch (intensity) {
-      case 'fatal':
+      case "fatal":
         return "💀"; // Replace with your preferred emoji
-      case 'important':
+      case "important":
         return "⚠️"; // Replace with your preferred emoji
-      case 'conflicts':
+      case "conflicts":
         return "👁️"; // Replace with your preferred emoji
-      case 'noproblems':
+      case "noproblems":
         return "✅"; // Replace with your preferred emoji
-      case 'perfect':
+      case "perfect":
         return "✨"; // Replace with your preferred emoji
       default:
-        return '';
+        return "";
     }
   };
 
@@ -31,9 +25,10 @@ const RepoFeddback = ({
       <p>Loading...</p>
       <br></br>
       <span role="img" aria-label="sheep">
-        {getEmoji(sentimentCategory)}</span>
-        <br></br>
-      <p className="description-message" >{description}</p>
+        {getEmoji(sentimentCategory)}
+      </span>
+      <br></br>
+      <p className="description-message">{description}</p>
     </div>
   );
 };
