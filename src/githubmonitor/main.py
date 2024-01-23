@@ -16,10 +16,6 @@ app = FastAPI(
     description="An application that helps users identify the repositories that will get the most support over the following 3 months.",
     version=SETTINGS.version,
 )
-app.include_router(router=repositories_router)
-app.include_router(router=sessions_router)
-app.include_router(router=users_router)
-app.include_router(router=llm_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,6 +24,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+app.include_router(router=repositories_router)
+app.include_router(router=sessions_router)
+app.include_router(router=users_router)
+app.include_router(router=llm_router)
+
+
 app.mount("/assets", StaticFiles(directory="../frontend/dist/assets"), name="static")
 
 
