@@ -30,6 +30,12 @@ function App() {
    */
   const [hoverIndex, setHoverIndex] = useState(1000);
 
+  /**
+   * State that tells the plot component if a forecast has been created, if so component will create a vertical line that shows when the forecast starts.
+   *
+   * @type {bool} Index of the hovered repository.
+   */
+  const [forecasted, setForecasted] = useState(false)
 
 
   /**
@@ -44,6 +50,7 @@ function App() {
         <Plot
           plotsSeries={plotsSeries}
           hoverIndex={hoverIndex}
+          forecasted ={forecasted}
         />
 
         {/* RepositoryList component for selecting repositories */}
@@ -53,6 +60,7 @@ function App() {
           setPlotsSeries={setPlotsSeries}
           plotsSeries = {plotsSeries}
           setHoverIndex={setHoverIndex}
+          setForecasted ={setForecasted}
 
         />
       </div>

@@ -99,6 +99,23 @@
     position: relative;
 
   }
+
+  .forecast-button {
+    height: 50px;
+    border-radius: 26px;
+    width: 70%;
+
+    color: #BCBCF2; /* Text color */
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 24px;
+    background-color: #242432;
+    margin-left: 15%;
+    margin-right: 15%;
+    text-align: center;
+
+  }
+
 /* State message styling */
 .state-text {
     display: flex;
@@ -176,3 +193,51 @@
         position: relative;
 
       }
+
+/* State message styling */
+.feed-title {
+    display: flex;
+    width: 85%;
+
+    color: #242432; /* Text color */
+    font-weight: 400;
+    font-size: 21px;
+    line-height: 24px;
+    margin-left: 7.5%;
+    margin-right: 7.5%;
+    margin-top: 6%;
+    position: relative;
+
+    }
+
+.feed-subtitle {
+    display: flex;
+    width: 85%;
+
+    color: #242432; /* Text color */
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 24px;
+    margin-left: 7.5%;
+    margin-right: 7.5%;
+    margin-top: 6%;
+    position: relative;
+
+    }
+
+    /* State message styling */
+    .feed-message {
+        display: flex;
+        width: 85%;
+
+        color: #242432; /* Text color */
+        font-weight: 400;
+        font-size: 14px;
+        line-height: 24px;
+        margin-left: 7.5%;
+        margin-right: 7.5%;
+        margin-top: 6%;
+        position: relative;
+        text-align: justify;
+
+}

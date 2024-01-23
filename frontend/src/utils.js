@@ -4,16 +4,23 @@
  * retrieving commit data, and formatting it for chart presentation.
  * @module githubApiUtils
  */
-
 import { Octokit } from "octokit";
+import searchRepoDemo from "./demo/searchRepo.json";
+import pytorchCommits from "./demo/allCommits_1.json";
+import reactCommits from "./demo/allCommits_2.json";
+import phpCommits from "./demo/allCommits_3.json";
+import descriptionDemo from "./demo/fetchDescription.json";
+import issueDemo from "./demo/fetchLastIssue.json";
+
 //import commitsData from "./commitsData.json"
 // GitHub API token for authentication
 const githubApiToken = import.meta.env.VITE_GITHUB_API_TOKEN;
-
 // Initialize Octokit instance with authentication
 const octokit = new Octokit({
   auth: githubApiToken,
 });
+//const pytorchCommits = import.meta.glob("./demo/allCommits_1.json");
+//const reactCommits = import.meta.glob("./demo/allCommits_2.json");
 
 /**
  * Formats commit data for chart presentation.
@@ -49,18 +56,28 @@ export const formatChatData = (plotData) => {
  * @param {Object[]} plotData - List of objects containing commit data.
  * @returns {Object} - Formatted data suitable for charting.
  */
-export const formatForecastData = (response) => {
-  const formattedDates = response.dates.map((timestamp) => {
-    const date = new Date(timestamp / 1e6); // Convert nanoseconds to milliseconds
-    return date.toLocaleDateString("en-US"); // Adjust the locale as needed
-  });
+export const getPlotFormat = (response, forecastSubprocess) => {
+  let formattedDates = [];
+  let data = [];
+  if (forecastSubprocess) {
+    formattedDates = response.dates.map((timestamp) => {
+      const date = new Date(timestamp / 1e6); // Convert nanoseconds to milliseconds
+      return date.toLocaleDateString("en-US"); // Adjust the locale as needed
+    });
+    data = response.forecast;
+  } else {
+    formattedDates = response.dates.map((date) => {
+      return date.substring(0, 10); // Adjust the locale as needed
+    });
+    data = response.commits;
+  }
 
   let formatChatData = {
     labels: formattedDates,
     datasets: [
       {
         label: "Commit History",
-        data: response.forecast,
+        data: data,
         backgroundColor: [
           "rgba(75,192,192,1)",
           "#ecf0f1",
@@ -145,7 +162,7 @@ export const getAllCommits = async (owner, repo) => {
           headers: {
             Accept: "application/vnd.github.v3+json", // Use the recommended Accept header
           },
-        },
+        }
       );
 
       const commits = commitsResponse.data;
@@ -175,45 +192,62 @@ export const getAllCommits = async (owner, repo) => {
  * @param {Object[]} commits - List of commits to be grouped.
  * @returns {Object[]} - List of objects representing weekly commit data.
  */
-export const searchRepositories = async (input) => {
+export const searchRepositories = async (input, demo = false) => {
   const threeMonthsAgo = new Date();
   threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
   const formattedDate = threeMonthsAgo.toISOString();
-  try {
-    const response = await octokit.request("GET /search/repositories", {
-      headers: {
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-      q: `${input} in:name`, // Search for repositories with INPUT in the name
-      sort: "stars", //I selected this as my own criteria since we want top repositories as first suggestions.
-      order: "desc", // Specify the order (descending)
-      per_page: 6, // Number of results per page
-      page: 1, // Page number
-      since: formattedDate, // reduce execution timne
-    });
 
-    // Extract and log the repository data
-    const repositories = response.data.items;
-    return repositories;
+  try {
+    if (demo) {
+      console.log(`demo: ${searchRepoDemo}`);
+      const response = searchRepoDemo;
+      const repositories = response.data.items;
+      return repositories;
+    } else {
+      const response = await octokit.request("GET /search/repositories", {
+        headers: {
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+        q: `${input} in:name`, // Search for repositories with INPUT in the name
+        sort: "stars", //I selected this as my own criteria since we want top repositories as first suggestions.
+        order: "desc", // Specify the order (descending)
+        per_page: 6, // Number of results per page
+        page: 1, // Page number
+        since: formattedDate, // reduce execution timne
+      });
+
+      // Extract and log the repository data
+      const repositories = response.data.items;
+      return repositories;
+    }
   } catch (error) {
     console.error("Error:", error.message);
   }
 };
 
 // Fetch the last issue of the repository
-export const fetchLastIssue = async (owner, repo) => {
+export const fetchLastIssue = async (owner, repo, demo = 0) => {
   let title = "";
   let body = "";
+  let response = {};
   try {
-    const response = await octokit.request("GET /repos/{owner}/{repo}/issues", {
-      owner: owner,
-      repo: repo,
-      sort: "created",
-      direction: "desc",
-      headers: {
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-    });
+    if (demo>0) {
+      response = issueDemo[demo-1];
+
+    } else {
+      const response = await octokit.request(
+        "GET /repos/{owner}/{repo}/issues",
+        {
+          owner: owner,
+          repo: repo,
+          sort: "created",
+          direction: "desc",
+          headers: {
+            "X-GitHub-Api-Version": "2022-11-28",
+          },
+        }
+      );
+    }
 
     // Check if there's at least one issue
     if (response.data) {
@@ -228,17 +262,24 @@ export const fetchLastIssue = async (owner, repo) => {
 };
 
 // Fetch the last issue of the repository
-export const fetchDescription = async (owner, repo) => {
+export const fetchDescription = async (owner, repo, demo = false) => {
+  let response = {};
   try {
-    const response = await octokit.request("GET /repos/{owner}/{repo}", {
-      owner: owner,
-      repo: repo,
-      sort: "created",
-      direction: "desc",
-      headers: {
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-    });
+    if (demo>0) {
+      response = await descriptionDemo[demo];
+    } else {
+      response = await octokit.request("GET /repos/{owner}/{repo}", {
+        owner: owner,
+        repo: repo,
+        sort: "created",
+        direction: "desc",
+        headers: {
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      });
+      console.log(`----fetchDescription: ${JSON.stringify(response)}`);
+    }
+
     let description = "";
     // Check if there's at least one issue
     if (response.data) {
@@ -258,19 +299,23 @@ export const fetchDescription = async (owner, repo) => {
  * @param {string} owner - Owner of the repository
  * @returns {Object[]} - List of objects containning the forecast, sentiment analysis and project description
  */
-export const getRepoForecast = async (owner, repo) => {
+export const getRepoData = async (owner, repo, demo = 0) => {
   try {
     // Fetch all commits for the specified repository
-    let test = false;
     let commitsData = [];
     let plotData = [];
-    if (test) {
-      commitsData = [];
+    if (demo>0) {
+        if(demo ===1){
+            commitsData = pytorchCommits;
+        }else if(demo ===2){
+            commitsData = reactCommits;
+        }else{
+            commitsData = phpCommits;
+
+        }
       // commitsData = commitsData;
       plotData = weeklyCommits(commitsData);
     } else {
-      console.log(`owner: ${owner}`);
-      console.log(`repo: ${repo}`);
       commitsData = await getAllCommits(owner, repo);
       plotData = weeklyCommits(commitsData);
     }
@@ -279,13 +324,35 @@ export const getRepoForecast = async (owner, repo) => {
       dates: plotData.map((data) => data.startDate),
       commits: plotData.map((data) => data.totalCommits),
     };
+    let forecastSubprocess = false;
+    let formatedData = getPlotFormat(formatBackendPost, forecastSubprocess);
 
-    let forecast = await getForecast(formatBackendPost);
-    console.log(`*** forecast: ${forecast}`);
+    return formatedData;
+  } catch (error) {
+    console.error("Error fetching commits:", error.message);
+    // Handle errors (e.g., display an error message to the user)
+  }
+};
 
-    let formatteForecast = formatForecastData(forecast);
+/**
+ * Search for a Github repository using a partial search over the repository name passing input as search criteria
+ *
+ * @param {string} repo - Repository name
+ * @param {string} owner - Owner of the repository
+ * @returns {Object[]} - List of objects containning the forecast, sentiment analysis and project description
+ */
 
-    return formatteForecast;
+export const getRepoForecast = async (series, demo = 0) => {
+  try {
+    let forecasts = await getForecast(series);
+    let forecastSubprocess = true;
+    let forecastsFormated = []
+    for(let i =0; i < forecasts.length; i++){
+        let forecast = forecasts[i];
+        let formattedForecast = getPlotFormat(forecast, forecastSubprocess);
+        forecastsFormated.push({ ...formattedForecast, id: i});
+    }
+    return forecastsFormated;
   } catch (error) {
     console.error("Error fetching commits:", error.message);
     // Handle errors (e.g., display an error message to the user)
@@ -299,22 +366,21 @@ export const getRepoForecast = async (owner, repo) => {
  * @param {string} owner - Owner of the repository
  * @returns {Object[]} - List of objects containning the forecast, sentiment analysis and project description
  */
-export const getRepoInfo = async (owner, repo) => {
+export const getRepoInfo = async (owner, repo, demo = 0) => {
   try {
     // Fetch LLM Infor
     let repoIssue = "";
     let repoDescription = "";
-
-    repoDescription = await fetchDescription(owner, repo);
-    repoIssue = await fetchLastIssue(owner, repo);
-
+    let sentimentCategories = ""
+    repoDescription = await fetchDescription(owner, repo, demo);
     let llmDescription = await getLLMDescription(repoDescription);
-    console.log(` *** repoDescription: ${repoDescription}`);
-    let sentimentCategory = await getLLMSentiment(repoIssue);
+
+    repoIssue = await fetchLastIssue(owner, repo, demo);
+    sentimentCategories = await getLLMSentiment(repoIssue);
 
     let response = {
       llmDescription: llmDescription,
-      sentimentCategory: sentimentCategory,
+      sentimentCategories: sentimentCategories,
     };
 
     return response;
@@ -331,20 +397,30 @@ export const getRepoInfo = async (owner, repo) => {
  * @returns {Promise<Object>} - A promise that resolves to the user information.
  */
 export const getForecast = async (commitsData) => {
+ 
+  let dataSeries= []
   try {
+    for (let id = 0; id < commitsData.length; id++) {
+        let dates = commitsData[id].labels
+        let commits = commitsData[id].datasets[0].data;
+        let data =  {
+            dates: dates,
+            commits: commits,}
+            dataSeries.push(data)
+    }
+    
     const response = await fetch(
       `http://localhost:8000/repositories/get_forecast`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dates: commitsData.dates,
-          commits: commitsData.commits,
-        }),
-      },
+            dataSeries: dataSeries,
+        }
+        ),
+      }
     );
     var data = await response.json();
-    console.log(`***** data: ${JSON.stringify(data)}`);
     return data;
   } catch (error) {
     return {
@@ -370,7 +446,7 @@ export const getLLMDescription = async (repoDescription) => {
         body: JSON.stringify({
           query: formatedQuery,
         }),
-      },
+      }
     );
     var llmDescription = await response.json();
     return llmDescription.description;
@@ -397,13 +473,11 @@ export const getLLMSentiment = async (repoIssue) => {
         body: JSON.stringify({
           query: repoIssue,
         }),
-      },
+      }
     );
-    var sentimentCategory = await response.json();
-    console.log(
-      `***** Sentiment Analysis: ${JSON.stringify(sentimentCategory)}`,
-    );
-    return sentimentCategory.category;
+    var sentimentCategories = await response.json();
+    console.log();
+    return sentimentCategories.category;
   } catch (error) {
     return {
       response: "**Sorry for the inconvenience - user** \n" + error,
@@ -422,7 +496,7 @@ export const interactLLM = async (conversationId, message) => {
           conversation_id: conversationId,
           message: message,
         }),
-      },
+      }
     );
     const reader = response.body.getReader();
     return reader;

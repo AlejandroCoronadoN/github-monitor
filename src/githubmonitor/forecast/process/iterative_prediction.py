@@ -559,7 +559,7 @@ def create_iterative_forecast(
             df_predicted_all = pd.concat([df_predicted, df_predicted_renamed])
     #! IMPORTANT -  PART of the forecast.
     if production:
-        df_out_production = df_predicted.rename(
+        df_out_production = df_predicted_all.rename(
             columns={
                 "repo_name": "Repository",
                 "date": "Date",
