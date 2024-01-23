@@ -1,9 +1,8 @@
-import { searchRepositories, weeklyCommits } from "../../utils";
+import { searchRepositories, getRepoInfo, getRepoForecast, getRepoData } from "../../utils";
 import React, { useState, useEffect } from "react";
 import { Search } from "react-feather";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./RepositoryList.css";
-import { getRepoInfo, getRepoForecast } from "../../utils";
 import ItemDetails from "./ItemIterator/ItemDetails";
 import SelectionDetails from "./ItemIterator/SelectionDetails";
 //import repoSuggestions from "./repositorySearch.json";
@@ -25,6 +24,9 @@ const RepositoryList = ({
   setPlotsSeries,
   plotsSeries,
   setHoverIndex,
+  setForecasted,
+  demo, 
+  setDemo
 }) => {
   const [inputValue, setInputValue] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -33,20 +35,19 @@ const RepositoryList = ({
   const [loading, setLoading] = useState(false); // New loading state
   const [requestTimeOut, setrequestTimeOut] = useState(false);
   const [startTimeOut, setStartTimeOut] = useState(false);
-
   /**
-   * State hook to manage description for the Loading component
+   * State hook to manage descriptions for the Loading component
    *
    * @type {string} Index of the hovered repository.
    */
-  const [description, setDescription] = useState("");
+  const [descriptions, setDescriptions] = useState([]);
 
   /**
    * State hook to manage sentimentAnalysis category and insert Emoji
    *
    * @type {string} Index of the hovered repository.
    */
-  const [sentimentCategory, setSentimentCategory] = useState("");
+  const [sentimentCategories, setSentimentCategories] = useState([]);
 
   const colors = ["#4CCA8D", "#71B7F8", "#D65C5C"];
   const localTest = false;
@@ -54,7 +55,7 @@ const RepositoryList = ({
 
   useEffect(() => {
     // Trigger the effect whenever the input value changes
-  }, [suggestions, description, sentimentCategory]);
+  }, [suggestions, descriptions, sentimentCategories]);
 
   /**
    * Filters the GitHub repository suggestions based on the input value.
@@ -73,19 +74,27 @@ const RepositoryList = ({
       let filteredValues = results.map((result, i) => {
         let author = result.full_name.split("/")[0];
         let repo = result.full_name.split("/")[1];
+        let authorShort = "";
+        let repoShort = "";
 
         if (author.length >= 20) {
-          author = author.slice(0, 40) + "...";
+          authorShort = author.slice(0, 40) + "...";
+        } else {
+          authorShort = author;
         }
         if (repo.length > 20) {
-          repo = repo.slice(0, 30) + "...";
+          repoShort = repo.slice(0, 30) + "...";
+        } else {
+          repoShort = repo;
         }
 
         let lastUpdate = formatDate(result.updated_at);
         let formatedResponse = {
           id: i,
+          authorShort: authorShort,
           author: author,
-          repository: repo,
+          repo: repo,
+          repoShort: repoShort,
           stars: result.stargazers_count,
           update: lastUpdate,
         };
@@ -132,21 +141,25 @@ const RepositoryList = ({
   const fetchPlotsSeries = async (item) => {
     try {
       setLoading(true); // Set loading to true before starting the fetch
-      const infoResponse = await getRepoInfo(item.author, item.repository);
+      const infoResponse = await getRepoInfo(item.author, item.repo, demo);
 
-      setDescription(infoResponse.llmDescription);
-      setSentimentCategory(infoResponse.sentimentCategory);
-      setLoading(true); // Set loading to true before starting the fetch
+      setDescriptions(prevDescriptions => [...prevDescriptions, infoResponse.llmDescription]);
+      setSentimentCategories(prevSentiments => [...prevSentiments, infoResponse.sentimentCategories]);
 
-      const response = await getRepoForecast(item.author, item.repository);
+
+      const response = await getRepoData(item.author, item.repo, demo);
+      if(demo>0){
+        setDemo(demo + 1);
+      }
+
 
       setLoading(false); // Set loading to false after the fetch is complete
       return response;
     } catch (error) {
       setLoading(false); // Set loading to false if an error occurs
       console.error(
-        `Error fetching commits for ${item.author}/${item.repository}:`,
-        error.message,
+        `Error fetching commits for ${item.author}/${item.repo}:`,
+        error.message
       );
       throw error;
     }
@@ -187,15 +200,9 @@ const RepositoryList = ({
     clearTimeout(timeoutId);
 
     timeoutId = setTimeout(async () => {
-      let test = false;
       let results = [];
 
-      if (test) {
-        //results = repoSuggestions;
-        results = [];
-      } else {
-        results = await searchRepositories(inputValue);
-      }
+      results = await searchRepositories(inputValue, demo);
 
       let filteredSuggestions = filterSuggestions(inputValue, results);
       setSuggestions(filteredSuggestions);
@@ -236,6 +243,35 @@ const RepositoryList = ({
     }
   };
 
+  const handleForecastClick = async () => {
+    let forecastData = [];
+    setLoading(true); // Set loading to true before starting the fetch
+    forecastData = await iterativeForecast()
+    setPlotsSeries(forecastData);
+    setForecasted(true)
+    setLoading(false); // Set loading to true before starting the fetch
+
+  };
+  
+
+
+/**
+ * Creates a forecast for each repository in the SelectedRepositories List
+ *
+ */
+const iterativeForecast = async () => {
+    let newCommits = [];
+    // Use for loop for synchronous iteration
+    try {
+    // Use await to wait for the asynchronous getRepoForecast function
+    newCommits = await getRepoForecast(plotsSeries);
+    } catch (error) {
+    console.error(`Error fetching forecast for repository ${id}:`, error);
+    }
+    return newCommits
+    };
+
+
   /**
    * Handles click events on selected repositories and updates chart highlight.
    *
@@ -258,8 +294,10 @@ const RepositoryList = ({
         <div className="loading-alert">
           <div className="loading-message">
             <RepoFeddback
-              description={description}
-              sentimentCategory={sentimentCategory}
+              descriptions={descriptions}
+              sentimentCategories={sentimentCategories}
+              loading={loading}
+              selectedRepositories={selectedRepositories}
             />
           </div>
         </div>
@@ -307,6 +345,16 @@ const RepositoryList = ({
           </div>
         ))}
       </div>
+
+      {(selectedRepositories.length !== 0) ? (
+        <div>
+          <button className="forecast-button" onClick={handleForecastClick}>
+            Get Forecast
+          </button>
+        </div>
+      ) : (
+        <div></div>
+      )}
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import "./Plot.css";
 import React, { useEffect, useState } from "react";
 import { Line } from "react-chartjs-2";
+import Chart from 'chart.js/auto';
 
 /**
  * Component representing a line chart to visualize weekly commits.
@@ -11,7 +12,9 @@ import { Line } from "react-chartjs-2";
  * @param {number} props.hoverIndex - The index of the repository being hovered.
  * @returns {JSX.Element} The rendered Plot component.
  */
-const Plot = ({ plotsSeries, hoverIndex }) => {
+
+
+const Plot = ({ plotsSeries, hoverIndex, forecasted }) => {
   // State to store the maximum and minimum values for the y-axis
   const [maxY, setMaxY] = useState(3);
   const [minY, setMinY] = useState(-1);
@@ -50,7 +53,13 @@ const Plot = ({ plotsSeries, hoverIndex }) => {
       if (hoverIndex === 1000) {
         backgroundColor = colors[index];
       } else {
-        backgroundColor = colorsHover[index];
+        if(index == hoverIndex){
+            backgroundColor = colors[index];
+
+        }else{
+            backgroundColor = colorsHover[index];
+
+        }
       }
 
       // Define the dataset for the current repository
@@ -78,8 +87,8 @@ const Plot = ({ plotsSeries, hoverIndex }) => {
   }, [plotsSeries, hoverIndex]);
 
   // Create a unique color for each repository
-  const colors = ["#4CCA8D", "#D65C5C", "#71B7F8"];
-  const colorsHover = ["#b4ffdb", "#eaa3a3", "#c2dcf6"];
+  const colors = ["#4CCA8D",  "#71B7F8", "#D65C5C"];
+  const colorsHover = ["#b4ffdb",  "#c2dcf6", "#eaa3a3"];
 
   // Calculate dynamic max and min values for y-axis
   const offsetMax = 0.01;
@@ -297,6 +306,8 @@ const Plot = ({ plotsSeries, hoverIndex }) => {
       legend: {
         display: false,
       },
+
+
     },
   };
 

@@ -78,11 +78,11 @@ const SelectionDetails = ({
         style={itemSelectionStyle}
         onClick={() => handleItemClick(item)}
         onMouseEnter={() => setHoverIndex(item.id)}
-        onMouseLeave={() => setHoverIndex(item.id)}
+        onMouseLeave={() => setHoverIndex(1000)}
         >
       <div className="item-set">
         <span className="author-selection">{item.author + ' /'}</span>
-        <span className="repo-selection">{item.repository.slice(0,15)}</span>
+        <span className="repo-selection">{item.repo.slice(0,15)}</span>
       </div>
       <div className="item-set-details">
         {/* Add the star icon here */}

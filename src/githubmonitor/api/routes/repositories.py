@@ -54,7 +54,7 @@ repositories_router = APIRouter(
 
 @repositories_router.post("/get_forecast")
 async def get_forecast(
-    message: githubmonitor.api.schemas.commitHistorySchema
+    message: githubmonitor.api.schemas.CommitHistorySchema
 ) -> StreamingResponse:
     """Process the repository historic information and creates a forecast using the last year of available data. After the user logs into the system, he will searches and select a repository. This action triggers this function via the start_session endopoint. repo_commit_history will be transformed into a pd.DataFrame and it will be passed as input for all the pretrainned models (RandomForest, Xgboost, LightGBM), located at the root/models directory.The predictions will be passed again as a json file that will feed the front-end and add the additional weekly obsertvations at the end of the plot.
 
@@ -68,47 +68,57 @@ async def get_forecast(
         StreamingResponse: Forcast output passed as a Json object.
     """
     # Make predictions on the testing data
+    df_repos = pd.DataFrame()
+    dataSeries = message.dataSeries
+    print("VALID FORMAT")
+    for i, data in enumerate(dataSeries):
+        commit_history = data.commits
+        dates = data.dates
+        logging.info(f"DATES: \n, {dates}")
+        if (
+            len(dates) <= 60
+        ):  # Clusters were trainned with 60 weeks of data to include at least 1 year of information. This information is important to allow the
+            raise ValueError(
+                "Error: The repository needs at least 60 weeks of historic information to create a forecast"
+            )
+        # Create a DataFrame
+        df = pd.DataFrame({"date": dates, "commit_count": commit_history})
+        df["repo_name"] = f"repo_{i}"
+        if len(df_repos) ==0:
+            df_repos=df
+        else:
+            df_repos=pd.concat([df, df_repos])
+    del df
+    print("VALIED DF ENTRIES ")
 
-    dates = message.dates
-    commit_history = message.commits
-    logging.info(f"DATES: \n, {dates}")
-    if (
-        len(dates) <= 60
-    ):  # Clusters were trainned with 60 weeks of data to include at least 1 year of information. This information is important to allow the
-        raise ValueError(
-            "Error: The repository needs at least 60 weeks of historic information to create a forecast"
-        )
-    # Create a DataFrame
-    df = pd.DataFrame({"date": dates, "commit_count": commit_history})
+
 
     # Optionally, convert the 'date' column to datetime format
-    df["date"] = pd.to_datetime(df["date"]).dt.normalize()
+    df_repos["date"] = pd.to_datetime(df_repos["date"]).dt.normalize()
     # Find the closest Monday for each date
-    df["date"] = df["date"] + pd.to_timedelta(
-        (6 - df["date"].dt.dayofweek) % 7, unit="D"
+    df_repos["date"] = df_repos["date"] + pd.to_timedelta(
+        (6 - df_repos["date"].dt.dayofweek) % 7, unit="D"
     )
 
-    df["date"] = df.date.apply(lambda x: str(x)[:10])
-    df["date"] = pd.to_datetime(df.date)
+    df_repos["date"] = df_repos.date.apply(lambda x: str(x)[:10])
+    df_repos["date"] = pd.to_datetime(df_repos.date)
 
-    df_out = df[["date", "commit_count"]]
+    df_out = df_repos[["date", "commit_count", "repo_name"]]
     n_lag_plot = 7  # Showing last 7 weeks
     df_out = df_out[df_out.date >= df_out.date.max() - timedelta(days=7 * n_lag_plot)]
     df_out = df_out.rename(
-        columns={"commit_count": "response_forecast", "date": "response_date"}
+        columns={"commit_count": "response_forecast", "date": "response_date", "repo_name":"repo_name"}
     )
 
-    # Will be used at the end
-    df["repo_name"] = "githubapi"
     # Feature Engineering processs
     lag_list = [2, 4, 6, 10]
     rolling_list = [2, 4, 6]
 
     df_window_mean, df_window_ewm = moving_average_variables(
-        df, "date", lag_list, rolling_list
+        df_repos, "date", lag_list, rolling_list
     )
 
-    df_features = df.merge(df_window_mean, on=["date", "repo_name"], how="inner")
+    df_features = df_repos.merge(df_window_mean, on=["date", "repo_name"], how="inner")
     df_features = df_features.merge(
         df_window_ewm, on=["date", "repo_name"], how="inner"
     )
@@ -119,7 +129,7 @@ async def get_forecast(
     prediction_window = 12
     forecast_start = df_features["date"].max()
     min_date = forecast_start - timedelta(days=(evaluation_window * 7))
-    parallel = False
+    parallel = True
 
     # Order is important and avoid making mistakes on the prediction
     model_features = [
@@ -235,18 +245,23 @@ async def get_forecast(
     )
 
     df_results["model_family"] = "elasticnet"
-    df_results = df_results[["elasticnet", "Date"]]
+    df_results = df_results[["elasticnet", "Date", "Repository"]]
     df_results = df_results.rename(
-        columns={"elasticnet": "response_forecast", "Date": "response_date"}
+        columns={"elasticnet": "response_forecast", "Date": "response_date", "Repository":"repo_name"}
     )
 
     df_out = pd.concat([df_out, df_results])
-
-    response = {
-        "dates": df_out["response_date"].values.tolist(),
-        "forecast": df_out["response_forecast"].values.tolist(),
-    }
-    return JSONResponse(response)
+    forecast = []
+    for repo in sorted(df_out["repo_name"].unique()):
+        df_repo = df_out[df_out.repo_name == repo]
+        response = {
+            "dates": df_repo["response_date"].values.tolist(),
+            "forecast": df_repo["response_forecast"].values.tolist(),
+        }
+        forecast.append(response)
+        
+        
+    return JSONResponse(forecast)
 
 
 async def create_forecast(

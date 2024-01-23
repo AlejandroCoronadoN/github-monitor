@@ -1,6 +1,6 @@
 """Schemas for the API."""
 
-from typing import List
+from typing import List, Any
 
 from pydantic import BaseModel, Field
 
@@ -39,20 +39,18 @@ class RepositorySchema(BaseModel):
     product_id: int = Field(..., example=92467)
     user_id: int = Field(..., example="10001")
 
+class CommitHistoryItem(BaseModel):
+    dates: List[str]
+    commits: List[int]
 
-class commitHistorySchema(BaseModel):
-    """Represents the id passed by the scanner when a iser credential is scanned.
 
-    Args:
-        message (str): The content of the message.
-    """
-
-    dates: List[str] = Field(
+class CommitHistorySchema(BaseModel):
+    dataSeries: List[CommitHistoryItem] = Field(
         ...,
         example=[
-            "2023-03-26T23:27:42.132Z",
-            "2023-03-19T23:27:42.132Z",
-            "2023-03-12T23:27:42.132Z",
-        ],
+            {"dates": ["2023-03-26T23:27:42.132Z", "2023-03-19T23:27:42.132Z", "2023-03-12T23:27:42.132Z"],
+             "commits": [1, 2, 3]},
+            {"dates": ["2023-03-26T23:27:42.132Z", "2023-03-19T23:27:42.132Z", "2023-03-12T23:27:42.132Z"],
+             "commits": [1, 2, 3]}
+        ]
     )
-    commits: List[int] = Field(..., example=[1, 2, 3])
