@@ -148,7 +148,10 @@ const RepositoryList = ({
 
 
       const response = await getRepoData(item.author, item.repo, demo);
-      setDemo(demo + 1);
+      if(demo>0){
+        setDemo(demo + 1);
+      }
+
 
       setLoading(false); // Set loading to false after the fetch is complete
       return response;
