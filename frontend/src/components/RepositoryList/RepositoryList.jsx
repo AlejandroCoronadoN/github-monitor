@@ -25,6 +25,8 @@ const RepositoryList = ({
   plotsSeries,
   setHoverIndex,
   setForecasted,
+  demo, 
+  setDemo
 }) => {
   const [inputValue, setInputValue] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -33,7 +35,6 @@ const RepositoryList = ({
   const [loading, setLoading] = useState(false); // New loading state
   const [requestTimeOut, setrequestTimeOut] = useState(false);
   const [startTimeOut, setStartTimeOut] = useState(false);
-  const [demo, setDemo] = useState(1); //Change to 1 start loading the demo
   /**
    * State hook to manage descriptions for the Loading component
    *

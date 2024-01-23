@@ -13,6 +13,14 @@ body {
   }
 
 /* Default monitor size */
+.container-app {
+    width: 1600px;
+    height: 900px;
+    display: flex;
+    flex-direction: column;
+    margin-top: 2%;
+}
+
 .container {
     width: 1600px;
     height: 900px;
@@ -20,3 +28,26 @@ body {
     flex-direction: row;
     margin-top: 2%;
 }
+
+.demo-button {
+    width: 180px;
+    height: 28px;
+    display:flex;
+    margin-top: 1%;
+    margin-left: 85%;
+    padding-left: 18px;
+
+    border-radius: 26px;
+
+    color: #BCBCF2; /* Text color */
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 24px;
+    background-color: #242432;
+
+    text-align: center;
+
+}
+
+
+
