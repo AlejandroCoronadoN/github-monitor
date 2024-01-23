@@ -53,7 +53,13 @@ const Plot = ({ plotsSeries, hoverIndex, forecasted }) => {
       if (hoverIndex === 1000) {
         backgroundColor = colors[index];
       } else {
-        backgroundColor = colorsHover[index];
+        if(index == hoverIndex){
+            backgroundColor = colors[index];
+
+        }else{
+            backgroundColor = colorsHover[index];
+
+        }
       }
 
       // Define the dataset for the current repository
@@ -81,8 +87,8 @@ const Plot = ({ plotsSeries, hoverIndex, forecasted }) => {
   }, [plotsSeries, hoverIndex]);
 
   // Create a unique color for each repository
-  const colors = ["#4CCA8D", "#D65C5C", "#71B7F8"];
-  const colorsHover = ["#b4ffdb", "#eaa3a3", "#c2dcf6"];
+  const colors = ["#4CCA8D",  "#71B7F8", "#D65C5C"];
+  const colorsHover = ["#b4ffdb",  "#c2dcf6", "#eaa3a3"];
 
   // Calculate dynamic max and min values for y-axis
   const offsetMax = 0.01;

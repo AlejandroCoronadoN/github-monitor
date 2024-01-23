@@ -345,7 +345,7 @@ const iterativeForecast = async () => {
       {(selectedRepositories.length !== 0) ? (
         <div>
           <button className="forecast-button" onClick={handleForecastClick}>
-            Create Forecast
+            Get Forecast
           </button>
         </div>
       ) : (

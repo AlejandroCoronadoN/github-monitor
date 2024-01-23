@@ -78,7 +78,7 @@ const SelectionDetails = ({
         style={itemSelectionStyle}
         onClick={() => handleItemClick(item)}
         onMouseEnter={() => setHoverIndex(item.id)}
-        onMouseLeave={() => setHoverIndex(item.id)}
+        onMouseLeave={() => setHoverIndex(1000)}
         >
       <div className="item-set">
         <span className="author-selection">{item.author + ' /'}</span>
